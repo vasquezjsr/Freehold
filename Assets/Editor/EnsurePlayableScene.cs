@@ -31,7 +31,9 @@ namespace Freehold.EditorTools
             var scriptsOk =
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/World/GameBootstrap.cs") != null &&
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Player/PlayerController.cs") != null &&
-                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Crafting/Campfire.cs") != null;
+                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Crafting/Campfire.cs") != null &&
+                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/PlayerVisualBuilder.cs") != null &&
+                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/PropFactory.cs") != null;
 
             if (!scriptsOk)
             {

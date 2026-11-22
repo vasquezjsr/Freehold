@@ -1,3 +1,4 @@
+using Freehold.Art;
 using Freehold.Items;
 using UnityEngine;
 
@@ -20,11 +21,11 @@ namespace Freehold.World
                 PrimitiveType.Cube,
                 Vector3.zero,
                 new Vector3(80f, 0.2f, 80f),
-                new Color(0.45f, 0.7f, 0.38f),
+                ArtPalette.Grass,
                 "Ground");
             ground.transform.position = new Vector3(0f, -0.1f, 0f);
 
-            // Soft dirt patches
+            // Soft dirt patches (flat discs — ground plane only, not lighting)
             for (var i = 0; i < 8; i++)
             {
                 var pos = new Vector3(Random.Range(-30f, 30f), 0.01f, Random.Range(-30f, 30f));
@@ -32,12 +33,13 @@ namespace Freehold.World
                     PrimitiveType.Cylinder,
                     pos,
                     new Vector3(3f + Random.value * 3f, 0.02f, 3f + Random.value * 3f),
-                    new Color(0.55f, 0.45f, 0.28f),
+                    ArtPalette.Dirt,
                     $"Dirt_{i}",
                     false);
             }
         }
 
+        // Intentionally unchanged lighting / fog / sun setup (art pass does not touch lighting).
         static void BuildSky()
         {
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
@@ -69,84 +71,48 @@ namespace Freehold.World
             for (var i = 0; i < 28; i++)
             {
                 var pos = RandomRingPosition(6f, 36f);
-                CreateTree(pos);
+                PropFactory.CreateTree(pos, i);
             }
 
             for (var i = 0; i < 18; i++)
             {
                 var pos = RandomRingPosition(4f, 34f);
-                var scale = 0.4f + Random.value * 0.7f;
-                PrimitiveFactory.CreateColoredPrimitive(
-                    PrimitiveType.Sphere,
-                    pos + Vector3.up * (scale * 0.35f),
-                    Vector3.one * scale,
-                    new Color(0.5f, 0.5f, 0.48f),
-                    $"Rock_{i}");
+                PropFactory.CreateRock(pos, i);
             }
-        }
-
-        static void CreateTree(Vector3 pos)
-        {
-            var root = new GameObject("Tree");
-            root.transform.position = pos;
-
-            var trunk = PrimitiveFactory.CreateColoredPrimitive(
-                PrimitiveType.Cylinder,
-                pos + Vector3.up * 0.7f,
-                new Vector3(0.35f, 0.7f, 0.35f),
-                new Color(0.4f, 0.25f, 0.12f),
-                "Trunk");
-            trunk.transform.SetParent(root.transform, true);
-
-            var canopyColor = Color.Lerp(new Color(0.25f, 0.55f, 0.28f), new Color(0.35f, 0.7f, 0.3f), Random.value);
-            var canopy = PrimitiveFactory.CreateColoredPrimitive(
-                PrimitiveType.Sphere,
-                pos + Vector3.up * 2.1f,
-                Vector3.one * (1.6f + Random.value * 0.6f),
-                canopyColor,
-                "Canopy");
-            canopy.transform.SetParent(root.transform, true);
         }
 
         static void CreateLandmarkPond()
         {
-            PrimitiveFactory.CreateColoredPrimitive(
-                PrimitiveType.Cylinder,
-                new Vector3(12f, 0.02f, -8f),
-                new Vector3(6f, 0.05f, 6f),
-                new Color(0.25f, 0.55f, 0.75f),
-                "Pond",
-                false);
+            PropFactory.CreatePond(new Vector3(12f, 0.02f, -8f));
         }
 
         static void ScatterLoot()
         {
-            Spawn(ItemType.Axe, new Vector3(-6f, 0.35f, 4f));
-            Spawn(ItemType.Pickaxe, new Vector3(8f, 0.35f, 10f));
-            Spawn(ItemType.Knife, new Vector3(-10f, 0.25f, -3f));
-            Spawn(ItemType.PlasticBottle, new Vector3(11f, 0.25f, -6f));
-            Spawn(ItemType.DirtyWaterBottle, new Vector3(13f, 0.25f, -9f));
-            Spawn(ItemType.RawFood, new Vector3(3f, 0.2f, -5f));
-            Spawn(ItemType.RawFood, new Vector3(-14f, 0.2f, 8f));
-            Spawn(ItemType.Stick, new Vector3(2f, 0.3f, 2f));
-            Spawn(ItemType.Stick, new Vector3(-3f, 0.3f, -4f));
-            Spawn(ItemType.Stick, new Vector3(5f, 0.3f, 7f));
-            Spawn(ItemType.Stick, new Vector3(-8f, 0.3f, 6f));
-            Spawn(ItemType.Stick, new Vector3(9f, 0.3f, -2f));
-            Spawn(ItemType.Stone, new Vector3(-2f, 0.2f, 9f));
-            Spawn(ItemType.Stone, new Vector3(6f, 0.2f, -11f));
+            Spawn(ItemType.Axe, new Vector3(-6f, 0.15f, 4f));
+            Spawn(ItemType.Pickaxe, new Vector3(8f, 0.15f, 10f));
+            Spawn(ItemType.Knife, new Vector3(-10f, 0.1f, -3f));
+            Spawn(ItemType.PlasticBottle, new Vector3(11f, 0.05f, -6f));
+            Spawn(ItemType.DirtyWaterBottle, new Vector3(13f, 0.05f, -9f));
+            Spawn(ItemType.RawFood, new Vector3(3f, 0.08f, -5f));
+            Spawn(ItemType.RawFood, new Vector3(-14f, 0.08f, 8f));
+            Spawn(ItemType.Stick, new Vector3(2f, 0.05f, 2f));
+            Spawn(ItemType.Stick, new Vector3(-3f, 0.05f, -4f));
+            Spawn(ItemType.Stick, new Vector3(5f, 0.05f, 7f));
+            Spawn(ItemType.Stick, new Vector3(-8f, 0.05f, 6f));
+            Spawn(ItemType.Stick, new Vector3(9f, 0.05f, -2f));
+            Spawn(ItemType.Stone, new Vector3(-2f, 0.05f, 9f));
+            Spawn(ItemType.Stone, new Vector3(6f, 0.05f, -11f));
 
-            // Extra scattered sticks/stones for campfire crafting
             for (var i = 0; i < 10; i++)
             {
-                var pos = RandomRingPosition(3f, 22f) + Vector3.up * 0.25f;
+                var pos = RandomRingPosition(3f, 22f) + Vector3.up * 0.05f;
                 Spawn(Random.value > 0.4f ? ItemType.Stick : ItemType.Stone, pos);
             }
         }
 
         static void Spawn(ItemType type, Vector3 position)
         {
-            PrimitiveFactory.CreatePickup(type, position);
+            PropFactory.CreatePickup(type, position);
         }
 
         static Vector3 RandomRingPosition(float minRadius, float maxRadius)
