@@ -34,10 +34,22 @@ If Freehold is already added in Unity Hub:
 | Mouse | Look (click game view to lock; Esc unlocks) |
 | Left Shift | Sprint |
 | Space | Jump |
-| E | Pickup / light campfire / cook / boil |
+| E | Pickup / light campfire / place or take food / boil / chop tree (with axe) |
 | C | Place campfire (3 sticks) |
+| I | Toggle backpack / pockets panel |
 | R / T | Eat cooked / drink clean water |
 | F / Y | Eat raw / drink dirty water |
+
+### Inventory (pockets vs backpack)
+
+- **Pockets** (4 slots): pocket-sized only — food, bottles, knife, sticks, stones.
+- **Backpack** (8 slots, equipped at start): required for **axe / pickaxe / wood**; also holds overflow pocket items.
+- Tools and wood cannot go in pockets. If backpack is full, pickups are refused with a prompt.
+
+### Chopping & cooking
+
+- **Chop:** Have an **axe** in the backpack → stand by a tree → **E** to swing (3 hits fells; drops wood + sticks).
+- **Cook:** At a lit campfire with raw food → **E** places food on the fire → wait ~3.5s → **E** again to **take cooked food** into inventory.
 
 ## Art packs (CC0, vendored)
 
@@ -53,10 +65,10 @@ Gameplay still uses Freehold systems (needs, inventory, campfire cook/boil). Pro
 
 ## What the slice includes
 
-- Third-person pack hero (Vuena) with move/sprint/jump + pack animation bridge
-- Needs HUD: hunger, thirst, stamina
-- Kenney nature starter clearing + Quaternius loot props
-- Campfire place/light/cook/boil loop
+- Third-person pack hero with move/sprint/jump + procedural walk (opposite arm/leg + torso sway)
+- Needs HUD + pockets / backpack inventory (slot limits)
+- Nature starter clearing with trunk-matched tree colliders; large bushes solid, small passable
+- Static ground loot; axe chop trees for wood/sticks; campfire place/light/cook/take/boil loop
 
 ## Project layout
 

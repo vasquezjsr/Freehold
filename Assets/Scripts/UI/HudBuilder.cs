@@ -22,8 +22,8 @@ namespace Freehold.UI
             var thirst = CreateBar(canvasGo.transform, "Thirst", new Vector2(24, -58), new Color(0.1f, 0.15f, 0.25f));
             var stamina = CreateBar(canvasGo.transform, "Stamina", new Vector2(24, -92), new Color(0.1f, 0.2f, 0.12f));
 
-            var inventoryText = CreateText(canvasGo.transform, "InventoryText", new Vector2(24, -140), 18, TextAnchor.UpperLeft, new Vector2(900, 80));
-            var hintText = CreateText(canvasGo.transform, "HintText", new Vector2(24, -220), 16, TextAnchor.UpperLeft, new Vector2(1100, 40));
+            var inventoryText = CreateText(canvasGo.transform, "InventoryText", new Vector2(24, -140), 17, TextAnchor.UpperLeft, new Vector2(980, 120));
+            var hintText = CreateText(canvasGo.transform, "HintText", new Vector2(24, -270), 15, TextAnchor.UpperLeft, new Vector2(1200, 50));
             hintText.color = new Color(1f, 1f, 1f, 0.75f);
 
             var promptText = CreateText(canvasGo.transform, "Prompt", new Vector2(0, 120), 26, TextAnchor.LowerCenter, new Vector2(900, 60));

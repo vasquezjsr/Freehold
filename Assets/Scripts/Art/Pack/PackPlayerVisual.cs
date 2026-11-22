@@ -132,6 +132,8 @@ namespace Freehold.Art.Pack
         CharacterController _controller;
         Transform _visualRoot;
         float _phase;
+        float _chopUntil;
+        float _chopStart;
 
         Transform _hips;
         Transform _spine;
@@ -149,6 +151,18 @@ namespace Freehold.Art.Pack
         Quaternion _hipsRest, _spineRest, _chestRest, _headRest;
         Quaternion _thighLRest, _shinLRest, _thighRRest, _shinRRest;
         Quaternion _armLRest, _foreLRest, _armRRest, _foreRRest;
+
+        public static void TriggerChop(GameObject player)
+        {
+            var loco = player != null ? player.GetComponent<PackRigLocomotionVisual>() : null;
+            loco?.PlayChop();
+        }
+
+        public void PlayChop()
+        {
+            _chopStart = Time.time;
+            _chopUntil = Time.time + 0.48f;
+        }
 
         public bool TryBind(Transform visualRoot, CharacterController controller)
         {
@@ -224,13 +238,19 @@ namespace Freehold.Art.Pack
                 return;
             }
 
+            if (Time.time < _chopUntil)
+            {
+                ApplyChop();
+                return;
+            }
+
             var horizontal = new Vector3(_controller.velocity.x, 0f, _controller.velocity.z);
             var speed = horizontal.magnitude;
             var grounded = _controller.isGrounded;
             var sprinting = speed > 5.5f;
             var moving = speed > 0.2f;
 
-            var stepRate = sprinting ? 9.5f : moving ? 7.2f : 1.5f;
+            var stepRate = sprinting ? 10.2f : moving ? 7.6f : 1.5f;
             _phase += Time.deltaTime * stepRate;
 
             if (!grounded)
@@ -248,10 +268,46 @@ namespace Freehold.Art.Pack
             ApplyWalkRun(sprinting);
         }
 
+        void ApplyChop()
+        {
+            var u = Mathf.Clamp01((Time.time - _chopStart) / 0.48f);
+            // Wind-up → strike → recover.
+            float swing;
+            if (u < 0.28f)
+            {
+                swing = Mathf.Lerp(20f, -25f, u / 0.28f);
+            }
+            else if (u < 0.55f)
+            {
+                swing = Mathf.Lerp(-25f, 70f, (u - 0.28f) / 0.27f);
+            }
+            else
+            {
+                swing = Mathf.Lerp(70f, 8f, (u - 0.55f) / 0.45f);
+            }
+
+            var rightAxis = CharacterRight();
+            var upAxis = Vector3.up;
+            SetLocal(_hips, _hipsRest, Quaternion.Euler(6f, 12f, 0f));
+            SetLocal(_spine, _spineRest, Quaternion.Euler(8f, 18f, 0f));
+            SetLocal(_chest, _chestRest, Quaternion.Euler(10f, 22f, 0f));
+            SetLocal(_head, _headRest, Quaternion.Euler(0f, -10f, 0f));
+            SwingBone(_thighL, _thighLRest, 8f, rightAxis);
+            SwingBone(_thighR, _thighRRest, -6f, rightAxis);
+            SwingBone(_shinL, _shinLRest, 10f, rightAxis);
+            SwingBone(_shinR, _shinRRest, 8f, rightAxis);
+            // Dominant right-hand axe swing.
+            var carryR = Quaternion.AngleAxis(-20f, CharacterForward()) * Quaternion.AngleAxis(25f, upAxis);
+            SwingBone(_armR, _armRRest, -swing, rightAxis, carryR);
+            SwingBone(_foreR, _foreRRest, 25f + Mathf.Abs(swing) * 0.35f, rightAxis);
+            SwingBone(_armL, _armLRest, 12f, rightAxis, Quaternion.AngleAxis(18f, CharacterForward()));
+            SwingBone(_foreL, _foreLRest, 20f, rightAxis);
+        }
+
         void ApplyIdle()
         {
             var breathe = Mathf.Sin(Time.time * 1.7f) * 2.5f;
-            SetLocal(_hips, _hipsRest, Quaternion.identity);
+            SetLocal(_hips, _hipsRest, Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 0.9f) * 1.2f));
             SetLocal(_spine, _spineRest, Quaternion.Euler(breathe * 0.35f, 0f, 0f));
             SetLocal(_chest, _chestRest, Quaternion.Euler(breathe * 0.2f, 0f, 0f));
             SetLocal(_head, _headRest, Quaternion.Euler(-breathe * 0.25f, 0f, 0f));
@@ -259,48 +315,52 @@ namespace Freehold.Art.Pack
             SetLocal(_thighR, _thighRRest, Quaternion.Euler(-2f, 0f, 0f));
             SetLocal(_shinL, _shinLRest, Quaternion.Euler(4f, 0f, 0f));
             SetLocal(_shinR, _shinRRest, Quaternion.Euler(3f, 0f, 0f));
-            // Soften A-pose: pull arms slightly toward body + down.
-            SetLocal(_armL, _armLRest, Quaternion.Euler(8f, 0f, 18f));
-            SetLocal(_armR, _armRRest, Quaternion.Euler(8f, 0f, -18f));
-            SetLocal(_foreL, _foreLRest, Quaternion.Euler(6f, 0f, 0f));
-            SetLocal(_foreR, _foreRRest, Quaternion.Euler(6f, 0f, 0f));
+            // Soften A-pose: pull arms toward body + slightly down.
+            SetLocal(_armL, _armLRest, Quaternion.Euler(10f, 0f, 22f));
+            SetLocal(_armR, _armRRest, Quaternion.Euler(10f, 0f, -22f));
+            SetLocal(_foreL, _foreLRest, Quaternion.Euler(8f, 0f, 0f));
+            SetLocal(_foreR, _foreRRest, Quaternion.Euler(8f, 0f, 0f));
         }
 
         void ApplyWalkRun(bool sprinting)
         {
             // One shared gait phase. Positive = left leg forward / right arm forward (natural contralateral).
-            var legAmp = sprinting ? 38f : 28f;
-            var armAmp = sprinting ? 34f : 24f;
+            var legAmp = sprinting ? 42f : 32f;
+            var armAmp = sprinting ? 40f : 30f;
             var gait = Mathf.Sin(_phase);
+            var gaitCos = Mathf.Cos(_phase);
             var leftLeg = gait * legAmp;
             var rightLeg = -leftLeg;
             var leftArm = -gait * armAmp;   // opposite left leg
             var rightArm = gait * armAmp;   // opposite right leg
-            var shinL = Mathf.Max(0f, -gait) * (sprinting ? 50f : 36f);
-            var shinR = Mathf.Max(0f, gait) * (sprinting ? 50f : 36f);
-            var lean = sprinting ? 10f : 4f;
-            var sway = gait * 2.5f;
+            var shinL = Mathf.Max(0f, -gait) * (sprinting ? 55f : 40f);
+            var shinR = Mathf.Max(0f, gait) * (sprinting ? 55f : 40f);
+            var lean = sprinting ? 12f : 5f;
+            var sway = gait * 4.5f;
+            var hipYaw = gait * 6f;
+            var shoulderCounter = -gait * 7f;
 
             var rightAxis = CharacterRight();
 
-            SetLocal(_hips, _hipsRest, Quaternion.Euler(lean * 0.4f, 0f, sway * 0.8f));
-            SetLocal(_spine, _spineRest, Quaternion.Euler(lean * 0.5f, sway * 1.2f, 0f));
-            SetLocal(_chest, _chestRest, Quaternion.Euler(lean * 0.35f, sway, 0f));
-            SetLocal(_head, _headRest, Quaternion.Euler(sprinting ? -4f : 0f, -sway * 0.35f, 0f));
+            SetLocal(_hips, _hipsRest, Quaternion.Euler(lean * 0.45f, hipYaw, sway * 0.9f));
+            SetLocal(_spine, _spineRest, Quaternion.Euler(lean * 0.55f, shoulderCounter * 0.6f, sway * 0.35f));
+            SetLocal(_chest, _chestRest, Quaternion.Euler(lean * 0.4f, shoulderCounter, sway * 0.25f));
+            SetLocal(_head, _headRest, Quaternion.Euler(sprinting ? -5f : -1f, -shoulderCounter * 0.4f, 0f));
 
-            // Pitch limbs around character right so Rigify A-pose local axes stay coordinated.
             SwingBone(_thighL, _thighLRest, leftLeg, rightAxis);
             SwingBone(_thighR, _thighRRest, rightLeg, rightAxis);
             SwingBone(_shinL, _shinLRest, shinL, rightAxis);
             SwingBone(_shinR, _shinRRest, shinR, rightAxis);
 
-            // Slight adduction so arms don't stay locked in A-pose while swinging.
-            var armCarryL = Quaternion.AngleAxis(14f, CharacterForward());
-            var armCarryR = Quaternion.AngleAxis(-14f, CharacterForward());
+            // Adduction out of A-pose + slight vertical bob on shoulders via carry.
+            var armCarryL = Quaternion.AngleAxis(18f, CharacterForward()) *
+                            Quaternion.AngleAxis(gaitCos * 4f, Vector3.up);
+            var armCarryR = Quaternion.AngleAxis(-18f, CharacterForward()) *
+                            Quaternion.AngleAxis(-gaitCos * 4f, Vector3.up);
             SwingBone(_armL, _armLRest, leftArm, rightAxis, armCarryL);
             SwingBone(_armR, _armRRest, rightArm, rightAxis, armCarryR);
-            SwingBone(_foreL, _foreLRest, 14f + Mathf.Abs(leftArm) * 0.2f, rightAxis);
-            SwingBone(_foreR, _foreRRest, 14f + Mathf.Abs(rightArm) * 0.2f, rightAxis);
+            SwingBone(_foreL, _foreLRest, 16f + Mathf.Abs(leftArm) * 0.28f, rightAxis);
+            SwingBone(_foreR, _foreRRest, 16f + Mathf.Abs(rightArm) * 0.28f, rightAxis);
         }
 
         void ApplyJump()

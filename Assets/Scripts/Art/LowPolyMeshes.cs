@@ -304,6 +304,8 @@ namespace Freehold.Art
                 case ItemType.CookedFood: return Food(true);
                 case ItemType.Stick: return Stick();
                 case ItemType.Stone: return StoneLoot();
+                case ItemType.Wood: return CampfireLog();
+                case ItemType.Backpack: return Box("Backpack", new Vector3(0.35f, 0.4f, 0.18f), ArtPalette.Shirt);
                 default: return Box("fallback", Vector3.one * 0.2f, Color.magenta);
             }
         }

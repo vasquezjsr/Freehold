@@ -16,15 +16,27 @@ namespace Freehold.Items
             gameObject.tag = "Pickup";
         }
 
-        public void Collect(Inventory inventory)
+        public bool TryCollect(Inventory inventory, out string failReason)
         {
+            failReason = null;
             if (inventory == null)
             {
-                return;
+                failReason = "No inventory";
+                return false;
             }
 
-            inventory.Add(ItemType);
+            if (!inventory.TryAdd(ItemType, out failReason))
+            {
+                return false;
+            }
+
             Destroy(gameObject);
+            return true;
+        }
+
+        public void Collect(Inventory inventory)
+        {
+            TryCollect(inventory, out _);
         }
     }
 }
