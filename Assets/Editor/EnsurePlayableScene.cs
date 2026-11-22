@@ -32,8 +32,11 @@ namespace Freehold.EditorTools
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/World/GameBootstrap.cs") != null &&
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Player/PlayerController.cs") != null &&
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Crafting/Campfire.cs") != null &&
-                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/PlayerVisualBuilder.cs") != null &&
-                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/PropFactory.cs") != null;
+                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/Pack/PackPropFactory.cs") != null &&
+                AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/Pack/PackPlayerVisual.cs") != null &&
+                AssetDatabase.IsValidFolder("Assets/ThirdParty/KenneyNatureKit") &&
+                AssetDatabase.IsValidFolder("Assets/ThirdParty/QuaterniusRpgItems") &&
+                AssetDatabase.IsValidFolder("Assets/ThirdParty/VuenaBlockyCharacters");
 
             if (!scriptsOk)
             {
