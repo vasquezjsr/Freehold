@@ -31,18 +31,106 @@ namespace Freehold.Art.Pack
             "bush_01", "bush_02", "bush_05"
         };
 
+        static Bounds CombinedWorldBounds(GameObject go)
+        {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+            {
+                return new Bounds(go.transform.position, Vector3.one);
+            }
+
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            return bounds;
+        }
+
+        /// <summary>
+        /// BigRook nature FBXs are Z-up; pack prefabs bake ~-90° X so they stand in Unity.
+        /// Spawn must multiply yaw onto that upright base — never replace with yaw-only.
+        /// </summary>
+        static void ApplyYawPreservingUpright(Transform t, float yawDegrees)
+        {
+            var prefabRot = t.rotation;
+            var size = CombinedWorldBounds(t.gameObject).size;
+
+            // Prefab already upright (tall world AABB) — keep its tilt, add yaw.
+            if (size.y >= Mathf.Max(size.x, size.z) * 0.65f)
+            {
+                t.rotation = Quaternion.Euler(0f, yawDegrees, 0f) * prefabRot;
+                return;
+            }
+
+            // Still flat: force classic Z-up → Y-up, then yaw.
+            t.rotation = Quaternion.Euler(-90f, yawDegrees, 0f);
+            size = CombinedWorldBounds(t.gameObject).size;
+            if (size.y < Mathf.Max(size.x, size.z) * 0.65f)
+            {
+                t.rotation = Quaternion.Euler(0f, yawDegrees, -90f);
+            }
+        }
+
+        static void ClearColliders(GameObject go)
+        {
+            var cols = go.GetComponentsInChildren<Collider>(true);
+            for (var i = 0; i < cols.Length; i++)
+            {
+                Object.DestroyImmediate(cols[i]);
+            }
+        }
+
+        /// <summary>
+        /// Capsule around the trunk/volume after upright orientation — avoids sideways mesh colliders.
+        /// </summary>
+        static void AddUprightCapsuleCollider(GameObject go, float radiusScale, float maxRadius)
+        {
+            ClearColliders(go);
+
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+            {
+                var capsule = go.AddComponent<CapsuleCollider>();
+                capsule.height = 2f;
+                capsule.radius = 0.35f;
+                capsule.center = new Vector3(0f, 1f, 0f);
+                return;
+            }
+
+            var bounds = CombinedWorldBounds(go);
+            var lossy = go.transform.lossyScale;
+            var sx = Mathf.Max(0.001f, Mathf.Abs(lossy.x));
+            var sy = Mathf.Max(0.001f, Mathf.Abs(lossy.y));
+            var sz = Mathf.Max(0.001f, Mathf.Abs(lossy.z));
+
+            var localCenter = go.transform.InverseTransformPoint(bounds.center);
+            var height = Mathf.Max(0.4f, bounds.size.y / sy);
+            var radiusWorld = Mathf.Max(bounds.size.x, bounds.size.z) * 0.5f * radiusScale;
+            var radius = Mathf.Clamp(radiusWorld / Mathf.Max(sx, sz), 0.12f, maxRadius);
+
+            var col = go.AddComponent<CapsuleCollider>();
+            col.direction = 1; // Y-axis
+            col.height = height;
+            col.radius = radius;
+            col.center = new Vector3(0f, Mathf.Max(height * 0.5f, localCenter.y), 0f);
+        }
+
         public static GameObject CreateTree(Vector3 position, int variant)
         {
             var name = TreePrefabs[variant % TreePrefabs.Length];
-            var go = InstantiateNaturePrefab(name, $"Tree_{name}", position, addCollider: true);
+            var go = InstantiateNaturePrefab(name, $"Tree_{name}", position, addCollider: false);
             if (go == null)
             {
                 return Freehold.Art.PropFactory.CreateTree(position, variant);
             }
 
-            go.transform.rotation = Quaternion.Euler(0f, variant * 37f, 0f);
+            ApplyYawPreservingUpright(go.transform, variant * 37f);
             var scale = 0.85f + (variant % 4) * 0.1f;
             go.transform.localScale = Vector3.one * scale;
+            // Trunk-only-ish capsule so canopy doesn't form a wall / fallen-log barrier.
+            AddUprightCapsuleCollider(go, radiusScale: 0.22f, maxRadius: 0.55f);
             return go;
         }
 
@@ -55,8 +143,9 @@ namespace Freehold.Art.Pack
                 return null;
             }
 
-            go.transform.rotation = Quaternion.Euler(0f, variant * 40f, 0f);
+            ApplyYawPreservingUpright(go.transform, variant * 40f);
             go.transform.localScale = Vector3.one * (0.35f + (variant % 3) * 0.08f);
+            ClearColliders(go);
             return go;
         }
 
@@ -64,14 +153,15 @@ namespace Freehold.Art.Pack
         {
             // Nature pack has no rock meshes — use denser bushes / borders as ground dressing.
             var name = BushPrefabs[variant % BushPrefabs.Length];
-            var go = InstantiateNaturePrefab(name, $"RockDressing_{name}", position, addCollider: true);
+            var go = InstantiateNaturePrefab(name, $"RockDressing_{name}", position, addCollider: false);
             if (go == null)
             {
                 return Freehold.Art.PropFactory.CreateRock(position, variant);
             }
 
-            go.transform.rotation = Quaternion.Euler(0f, variant * 45f, 0f);
+            ApplyYawPreservingUpright(go.transform, variant * 45f);
             go.transform.localScale = Vector3.one * (0.55f + (variant % 5) * 0.08f);
+            AddUprightCapsuleCollider(go, radiusScale: 0.35f, maxRadius: 0.7f);
             return go;
         }
 
@@ -117,14 +207,7 @@ namespace Freehold.Art.Pack
 
         public static bool TryApplyGroundMaterial(GameObject ground)
         {
-#if UNITY_EDITOR
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(PackPaths.NatureMaterial("grass_tile_01"));
-            if (mat == null)
-            {
-                mat = AssetDatabase.LoadAssetAtPath<Material>(PackPaths.NatureMaterial("grass_tile_02"));
-            }
-
-            if (mat == null || ground == null)
+            if (ground == null)
             {
                 return false;
             }
@@ -135,11 +218,57 @@ namespace Freehold.Art.Pack
                 return false;
             }
 
-            renderer.sharedMaterial = mat;
-            return true;
-#else
-            return false;
+#if UNITY_EDITOR
+            // Prefer textured grass mats; grass_tile_01 often ships with a missing MainTex (white look).
+            Material mat = null;
+            foreach (var matName in new[] { "grass_tile_01d", "grass_tile_02", "grass_tile_01", "bush_tile" })
+            {
+                var candidate = AssetDatabase.LoadAssetAtPath<Material>(PackPaths.NatureMaterial(matName));
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                if (candidate.HasProperty("_MainTex") && candidate.mainTexture != null)
+                {
+                    mat = candidate;
+                    break;
+                }
+
+                if (mat == null)
+                {
+                    mat = candidate;
+                }
+            }
+
+            if (mat != null && mat.HasProperty("_MainTex") && mat.mainTexture != null)
+            {
+                renderer.sharedMaterial = mat;
+                return true;
+            }
+
+            // Runtime-tinted copy so we don't mutate the pack asset, and ground isn't pink/white.
+            if (mat != null)
+            {
+                var copy = new Material(mat);
+                copy.color = ArtPalette.Grass;
+                if (copy.HasProperty("_MainTex"))
+                {
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture>(PackPaths.NatureTexture("grass_tile_01d.tga"))
+                              ?? AssetDatabase.LoadAssetAtPath<Texture>(PackPaths.NatureTexture("Grass_Plane_01c.tif"));
+                    if (tex != null)
+                    {
+                        copy.mainTexture = tex;
+                        copy.mainTextureScale = new Vector2(8f, 8f);
+                    }
+                }
+
+                renderer.sharedMaterial = copy;
+                return true;
+            }
 #endif
+            renderer.sharedMaterial = PrimitiveFactory.ColorMaterial(ArtPalette.Grass);
+            return true;
         }
 
         public static ItemPickup CreatePickup(ItemType type, Vector3 position)
@@ -263,22 +392,11 @@ namespace Freehold.Art.Pack
             var go = Object.Instantiate(prefab);
             go.name = goName;
             go.transform.position = position;
+            // Keep prefab localRotation (Z-up correction). Callers apply yaw via ApplyYawPreservingUpright.
 
             if (addCollider && go.GetComponentInChildren<Collider>() == null)
             {
-                var filter = go.GetComponentInChildren<MeshFilter>();
-                if (filter != null && filter.sharedMesh != null)
-                {
-                    var col = go.AddComponent<MeshCollider>();
-                    col.sharedMesh = filter.sharedMesh;
-                }
-                else
-                {
-                    var capsule = go.AddComponent<CapsuleCollider>();
-                    capsule.height = 2f;
-                    capsule.radius = 0.4f;
-                    capsule.center = new Vector3(0f, 1f, 0f);
-                }
+                AddUprightCapsuleCollider(go, radiusScale: 0.25f, maxRadius: 0.5f);
             }
 
             return go;
