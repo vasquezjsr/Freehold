@@ -75,17 +75,22 @@ namespace Freehold.Art
             col.radius = 0.35f;
             col.center = new Vector3(0f, 0.15f, 0f);
 
-            // Tip tools slightly so silhouettes read on the ground
-            if (type == ItemType.Axe || type == ItemType.Pickaxe || type == ItemType.Knife || type == ItemType.Stick)
+            // Procedural tool meshes are long-axis Y — lay flat; sticks tip slightly.
+            var yaw = Random.Range(0f, 360f);
+            if (type == ItemType.Axe || type == ItemType.Pickaxe || type == ItemType.Knife)
             {
-                go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 12f);
+                go.transform.rotation = Quaternion.Euler(90f, yaw, 0f);
+            }
+            else if (type == ItemType.Stick)
+            {
+                go.transform.rotation = Quaternion.Euler(0f, yaw, 12f);
             }
             else
             {
-                go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             }
 
-            Freehold.Art.Pack.PackPropFactory.SnapToGround(go);
+            Freehold.Art.Pack.PackPropFactory.SnapToGround(go, hover: 0.01f);
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Configure(type);
             go.AddComponent<PickupBob>();
