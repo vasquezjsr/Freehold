@@ -21,14 +21,15 @@ namespace Freehold.Art.Pack
             "tree_common_01", "tree_common_02", "tree_common_03"
         };
 
+        // Volume bushes only (Y-up after pack's baked Z-up correction). No flat ground-card props.
         static readonly string[] BigBushPrefabs =
         {
-            "bush_03", "bush_04", "bush_border"
+            "bush_03", "bush_04", "bush_05"
         };
 
         static readonly string[] GrassPrefabs =
         {
-            "bush_01", "bush_02", "bush_05"
+            "bush_01", "bush_02", "bush_03"
         };
 
         static Bounds CombinedWorldBounds(GameObject go)
@@ -49,28 +50,13 @@ namespace Freehold.Art.Pack
         }
 
         /// <summary>
-        /// BigRook nature FBXs are Z-up; pack prefabs bake ~-90° X so they stand in Unity.
-        /// Spawn must multiply yaw onto that upright base — never replace with yaw-only.
+        /// BigRook nature FBXs are Z-up; pack prefabs already bake the upright correction
+        /// (root and/or children ≈ -90° X). Only multiply world yaw — never force another -90°.
+        /// Wide bushes fail a "tall AABB" test and used to get a second -90°, lying on their side.
         /// </summary>
         static void ApplyYawPreservingUpright(Transform t, float yawDegrees)
         {
-            var prefabRot = t.rotation;
-            var size = CombinedWorldBounds(t.gameObject).size;
-
-            // Prefab already upright (tall world AABB) — keep its tilt, add yaw.
-            if (size.y >= Mathf.Max(size.x, size.z) * 0.65f)
-            {
-                t.rotation = Quaternion.Euler(0f, yawDegrees, 0f) * prefabRot;
-                return;
-            }
-
-            // Still flat: force classic Z-up → Y-up, then yaw.
-            t.rotation = Quaternion.Euler(-90f, yawDegrees, 0f);
-            size = CombinedWorldBounds(t.gameObject).size;
-            if (size.y < Mathf.Max(size.x, size.z) * 0.65f)
-            {
-                t.rotation = Quaternion.Euler(0f, yawDegrees, -90f);
-            }
+            t.rotation = Quaternion.Euler(0f, yawDegrees, 0f) * t.rotation;
         }
 
         static void ClearColliders(GameObject go)
@@ -125,7 +111,8 @@ namespace Freehold.Art.Pack
             ApplyYawPreservingUpright(go.transform, variant * 37f);
             var scale = 0.85f + (variant % 4) * 0.1f;
             go.transform.localScale = Vector3.one * scale;
-            // Narrow trunk capsule — canopy must not form a wall.
+            SnapToGround(go, hover: 0f);
+            // Narrow trunk capsule — canopy must not form a wall. Build after plant so it matches mesh.
             AddUprightCapsuleCollider(go, radiusScale: 0.18f, maxRadius: 0.45f);
             return go;
         }
@@ -141,8 +128,9 @@ namespace Freehold.Art.Pack
             }
 
             ApplyYawPreservingUpright(go.transform, variant * 40f);
-            go.transform.localScale = Vector3.one * (0.35f + (variant % 3) * 0.08f);
+            go.transform.localScale = Vector3.one * (0.55f + (variant % 3) * 0.1f);
             ClearColliders(go);
+            SnapToGround(go, hover: 0f);
             return go;
         }
 
@@ -160,6 +148,7 @@ namespace Freehold.Art.Pack
 
             ApplyYawPreservingUpright(go.transform, variant * 45f);
             go.transform.localScale = Vector3.one * (0.85f + (variant % 5) * 0.12f);
+            SnapToGround(go, hover: 0f);
             AddUprightCapsuleCollider(go, radiusScale: 0.42f, maxRadius: 0.85f);
             return go;
         }
@@ -317,28 +306,57 @@ namespace Freehold.Art.Pack
                 return Freehold.Art.PropFactory.CreatePickup(type, position);
             }
 
+            go.transform.rotation = LootGroundRotation(type);
+            // Plant after mesh, scale, and rotation so renderer/mesh bounds match the final pose.
+            SnapToGround(go, hover: 0.01f);
+
             var col = go.GetComponent<Collider>();
             if (col == null)
             {
                 var sphere = go.AddComponent<SphereCollider>();
                 sphere.isTrigger = true;
                 sphere.radius = 0.4f;
-                sphere.center = new Vector3(0f, 0.15f, 0f);
+                var bounds = CombinedWorldBounds(go);
+                sphere.center = go.transform.InverseTransformPoint(bounds.center);
             }
             else
             {
                 col.isTrigger = true;
             }
 
-            go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), type == ItemType.Axe || type == ItemType.Pickaxe ? 15f : 0f);
-            SnapToGround(go);
+            // Re-snap in case collider/bounds settled after first plant.
+            SnapToGround(go, hover: 0.01f);
+
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Configure(type);
             go.AddComponent<PickupBob>();
             return pickup;
         }
 
-        /// <summary>Raycast down and plant mesh bottom on the hit surface (or y=0 ground top).</summary>
+        /// <summary>
+        /// Quaternius tools are authored long-axis = local Y; lay them flat.
+        /// Kenney logs/stones already sit with Y as thickness.
+        /// </summary>
+        static Quaternion LootGroundRotation(ItemType type)
+        {
+            var yaw = Random.Range(0f, 360f);
+            switch (type)
+            {
+                case ItemType.Axe:
+                case ItemType.Pickaxe:
+                case ItemType.Knife:
+                    return Quaternion.Euler(90f, yaw, 0f);
+                case ItemType.Stick:
+                    return Quaternion.Euler(0f, yaw, Random.Range(-6f, 6f));
+                default:
+                    return Quaternion.Euler(0f, yaw, 0f);
+            }
+        }
+
+        /// <summary>
+        /// Raycast to walkable ground, then lift so the mesh AABB bottom sits on that surface.
+        /// Uses MeshFilter corners when present (stable right after OBJ assign); renderer bounds fallback.
+        /// </summary>
         public static void SnapToGround(GameObject go, float hover = 0.02f)
         {
             if (go == null)
@@ -346,21 +364,42 @@ namespace Freehold.Art.Pack
                 return;
             }
 
+            Physics.SyncTransforms();
+
             var pos = go.transform.position;
-            var rayOrigin = pos + Vector3.up * 8f;
+            var groundY = ResolveGroundY(pos);
+
+            if (!TryWorldMeshBottom(go, out var bottomY))
+            {
+                bottomY = CombinedWorldBounds(go).min.y;
+            }
+
+            var delta = (groundY + hover) - bottomY;
+            if (Mathf.Abs(delta) > 0.0001f)
+            {
+                go.transform.position = pos + Vector3.up * delta;
+            }
+        }
+
+        static float ResolveGroundY(Vector3 pos)
+        {
+            // Starter ground cube top is y=0; prefer an explicit Ground hit when present.
             var groundY = 0f;
-            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 24f, ~0, QueryTriggerInteraction.Ignore);
+            var rayOrigin = new Vector3(pos.x, Mathf.Max(pos.y, 0f) + 40f, pos.z);
+            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 80f, ~0, QueryTriggerInteraction.Ignore);
             var bestDist = float.MaxValue;
+            var found = false;
+
             for (var i = 0; i < hits.Length; i++)
             {
                 var hit = hits[i];
-                // Skip vegetation capsules / self — only plant on the walkable ground plane.
-                if (hit.collider == null || hit.collider.transform.IsChildOf(go.transform))
+                if (hit.collider == null)
                 {
                     continue;
                 }
 
-                if (hit.collider.gameObject.name == "UprightCollider")
+                var hitGo = hit.collider.gameObject;
+                if (hitGo.name == "UprightCollider" || hitGo.name.StartsWith("Pickup_", System.StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -370,29 +409,56 @@ namespace Freehold.Art.Pack
                     continue;
                 }
 
+                if (hitGo.name == "Ground")
+                {
+                    return hit.point.y;
+                }
+
                 if (hit.distance < bestDist)
                 {
                     bestDist = hit.distance;
                     groundY = hit.point.y;
+                    found = true;
                 }
             }
 
-            go.transform.position = new Vector3(pos.x, groundY + hover, pos.z);
+            return found ? groundY : 0f;
+        }
 
-            var renderers = go.GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0)
+        static bool TryWorldMeshBottom(GameObject go, out float bottomY)
+        {
+            bottomY = float.MaxValue;
+            var filters = go.GetComponentsInChildren<MeshFilter>();
+            var any = false;
+            for (var i = 0; i < filters.Length; i++)
             {
-                return;
+                var mesh = filters[i].sharedMesh;
+                if (mesh == null)
+                {
+                    continue;
+                }
+
+                var b = mesh.bounds;
+                var matrix = filters[i].transform.localToWorldMatrix;
+                for (var cx = 0; cx < 2; cx++)
+                for (var cy = 0; cy < 2; cy++)
+                for (var cz = 0; cz < 2; cz++)
+                {
+                    var corner = new Vector3(
+                        cx == 0 ? b.min.x : b.max.x,
+                        cy == 0 ? b.min.y : b.max.y,
+                        cz == 0 ? b.min.z : b.max.z);
+                    var world = matrix.MultiplyPoint3x4(corner);
+                    if (world.y < bottomY)
+                    {
+                        bottomY = world.y;
+                    }
+                }
+
+                any = true;
             }
 
-            var bounds = renderers[0].bounds;
-            for (var i = 1; i < renderers.Length; i++)
-            {
-                bounds.Encapsulate(renderers[i].bounds);
-            }
-
-            var lift = (groundY + hover) - bounds.min.y;
-            go.transform.position += Vector3.up * lift;
+            return any;
         }
 
         public static Campfire CreateCampfire(Vector3 position)
