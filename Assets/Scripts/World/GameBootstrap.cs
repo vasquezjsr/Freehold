@@ -18,7 +18,7 @@ namespace Freehold.World
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoBoot()
         {
-            if (_booted || Object.FindObjectOfType<GameBootstrap>() != null)
+            if (_booted || Object.FindFirstObjectByType<GameBootstrap>() != null)
             {
                 return;
             }

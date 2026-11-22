@@ -12,7 +12,16 @@ namespace Freehold.World
         {
             if (_sharedLit == null)
             {
-                var shader = Shader.Find("Standard") ?? Shader.Find("Diffuse") ?? Shader.Find("Unlit/Color");
+                // Built-in RP (Unity 6): Standard is the lit default. Keep simple fallbacks.
+                var shader = Shader.Find("Standard")
+                             ?? Shader.Find("Legacy Shaders/Diffuse")
+                             ?? Shader.Find("Unlit/Color");
+                if (shader == null)
+                {
+                    Debug.LogError("Freehold: no suitable Built-in shader found. Stay on Built-in RP (not URP/HDRP).");
+                    shader = Shader.Find("Hidden/InternalErrorShader");
+                }
+
                 _sharedLit = new Material(shader);
             }
 

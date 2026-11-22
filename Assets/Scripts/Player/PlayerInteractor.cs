@@ -102,7 +102,7 @@ namespace Freehold.Player
         {
             ItemPickup best = null;
             var bestDist = interactRange;
-            var pickups = FindObjectsOfType<ItemPickup>();
+            var pickups = FindObjectsByType<ItemPickup>(FindObjectsSortMode.None);
             foreach (var pickup in pickups)
             {
                 var dist = Vector3.Distance(transform.position, pickup.transform.position);
@@ -120,7 +120,7 @@ namespace Freehold.Player
         {
             Campfire best = null;
             var bestDist = interactRange;
-            var fires = FindObjectsOfType<Campfire>();
+            var fires = FindObjectsByType<Campfire>(FindObjectsSortMode.None);
             foreach (var fire in fires)
             {
                 var dist = Vector3.Distance(transform.position, fire.transform.position);
