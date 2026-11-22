@@ -31,7 +31,7 @@ namespace Freehold.Art
 
             // Trunk-only capsule matching procedural trunk radius/height.
             var trunkHeight = 1.5f + (variant % 3) * 0.15f;
-            var trunkRadius = 0.22f;
+            var trunkRadius = 0.28f;
             var colGo = new GameObject("UprightCollider");
             colGo.transform.SetParent(root.transform, false);
             colGo.transform.localPosition = Vector3.zero;
@@ -41,7 +41,8 @@ namespace Freehold.Art
             col.radius = trunkRadius;
             col.center = new Vector3(0f, trunkHeight * 0.5f, 0f);
 
-            root.AddComponent<ChoppableTree>();
+            var chop = root.AddComponent<ChoppableTree>();
+            chop.ConfigureTrunk(position, trunkRadius);
             return root;
         }
 

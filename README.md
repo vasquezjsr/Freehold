@@ -65,9 +65,9 @@ Gameplay still uses Freehold systems (needs, inventory, campfire cook/boil). Pro
 
 ## What the slice includes
 
-- Third-person pack hero with move/sprint/jump + procedural walk (opposite arm/leg + torso sway)
+- Third-person pack hero with natural idle stance + procedural walk (opposite arm/leg + torso sway)
 - Needs HUD + pockets / backpack inventory (slot limits)
-- Nature starter clearing with trunk-matched tree colliders; large bushes solid, small passable
+- Nature starter clearing with solid bark-matched trunk colliders; chop from ~2m outside the trunk
 - Static ground loot; axe chop trees for wood/sticks; campfire place/light/cook/take/boil loop
 
 ## Project layout

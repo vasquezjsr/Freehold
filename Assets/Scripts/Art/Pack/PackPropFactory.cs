@@ -106,13 +106,14 @@ namespace Freehold.Art.Pack
         }
 
         /// <summary>
-        /// Trunk radius/height from mesh samples in the lower portion of the tree (ignores canopy width).
+        /// Trunk radius/height from the lowest bark band only (ignores canopy width).
+        /// Radius is padded to match the visual bark so the player cannot walk into the mesh.
         /// </summary>
         static bool TryEstimateTrunk(GameObject go, out Vector3 bottomCenter, out float radius, out float height)
         {
             bottomCenter = go.transform.position;
-            radius = 0.28f;
-            height = 2.2f;
+            radius = 0.4f;
+            height = 2.4f;
 
             var filters = go.GetComponentsInChildren<MeshFilter>();
             if (filters.Length == 0)
@@ -121,13 +122,16 @@ namespace Freehold.Art.Pack
             }
 
             var full = CombinedWorldBounds(go);
-            var bandMaxY = full.min.y + Mathf.Max(0.6f, full.size.y * 0.38f);
+            // Only the near-ground bark column — mid-height canopy verts inflate XZ and used to
+            // force a tiny clamped capsule that left a hollow walkable trunk.
+            var bandMaxY = full.min.y + Mathf.Min(1.25f, Mathf.Max(0.55f, full.size.y * 0.18f));
             var bandMinY = full.min.y;
 
             float minX = float.MaxValue, maxX = float.MinValue;
             float minZ = float.MaxValue, maxZ = float.MinValue;
             float minY = float.MaxValue, maxY = float.MinValue;
             var samples = 0;
+            double sumX = 0d, sumZ = 0d;
 
             for (var i = 0; i < filters.Length; i++)
             {
@@ -139,8 +143,7 @@ namespace Freehold.Art.Pack
 
                 var verts = mesh.vertices;
                 var matrix = filters[i].transform.localToWorldMatrix;
-                // Stride sample for large meshes.
-                var step = Mathf.Max(1, verts.Length / 400);
+                var step = Mathf.Max(1, verts.Length / 500);
                 for (var v = 0; v < verts.Length; v += step)
                 {
                     var world = matrix.MultiplyPoint3x4(verts[v]);
@@ -155,31 +158,61 @@ namespace Freehold.Art.Pack
                     maxZ = Mathf.Max(maxZ, world.z);
                     minY = Mathf.Min(minY, world.y);
                     maxY = Mathf.Max(maxY, world.y);
+                    sumX += world.x;
+                    sumZ += world.z;
                     samples++;
                 }
             }
 
             if (samples < 8)
             {
-                // Fallback: narrow fraction of full AABB.
-                radius = Mathf.Clamp(Mathf.Max(full.size.x, full.size.z) * 0.12f, 0.22f, 0.55f);
-                height = Mathf.Clamp(full.size.y * 0.55f, 1.6f, 4.5f);
+                radius = Mathf.Clamp(Mathf.Max(full.size.x, full.size.z) * 0.16f, 0.32f, 1.1f);
+                height = Mathf.Clamp(full.size.y * 0.55f, 1.8f, 5f);
                 bottomCenter = new Vector3(full.center.x, full.min.y, full.center.z);
                 return true;
             }
 
-            var rx = (maxX - minX) * 0.5f;
-            var rz = (maxZ - minZ) * 0.5f;
-            radius = Mathf.Clamp(Mathf.Max(rx, rz) * 0.95f, 0.22f, 0.65f);
-            height = Mathf.Clamp(Mathf.Max(maxY - minY, full.size.y * 0.45f), 1.6f, 5f);
-            bottomCenter = new Vector3((minX + maxX) * 0.5f, minY, (minZ + maxZ) * 0.5f);
+            var cx = (float)(sumX / samples);
+            var cz = (float)(sumZ / samples);
+            // Second pass: max horizontal distance from trunk axis (= visual bark radius).
+            var maxRadial = 0f;
+            for (var i = 0; i < filters.Length; i++)
+            {
+                var mesh = filters[i].sharedMesh;
+                if (mesh == null)
+                {
+                    continue;
+                }
+
+                var verts = mesh.vertices;
+                var matrix = filters[i].transform.localToWorldMatrix;
+                var step = Mathf.Max(1, verts.Length / 500);
+                for (var v = 0; v < verts.Length; v += step)
+                {
+                    var world = matrix.MultiplyPoint3x4(verts[v]);
+                    if (world.y < bandMinY - 0.05f || world.y > bandMaxY)
+                    {
+                        continue;
+                    }
+
+                    var dx = world.x - cx;
+                    var dz = world.z - cz;
+                    maxRadial = Mathf.Max(maxRadial, Mathf.Sqrt(dx * dx + dz * dz));
+                }
+            }
+
+            var aabbR = Mathf.Max((maxX - minX) * 0.5f, (maxZ - minZ) * 0.5f);
+            // Prefer radial fit; pad so collider meets the visible bark surface.
+            radius = Mathf.Clamp(Mathf.Max(maxRadial, aabbR) * 1.08f, 0.32f, 1.45f);
+            height = Mathf.Clamp(Mathf.Max(maxY - minY + 0.35f, full.size.y * 0.42f), 1.8f, 5.5f);
+            bottomCenter = new Vector3(cx, minY, cz);
             return true;
         }
 
-        static void AddTrunkCollider(GameObject go)
+        static void AddTrunkCollider(GameObject go, out Vector3 bottom, out float radius)
         {
             Physics.SyncTransforms();
-            TryEstimateTrunk(go, out var bottom, out var radius, out var height);
+            TryEstimateTrunk(go, out bottom, out radius, out var height);
             AddUprightCapsuleCollider(go, radius, height, bottom);
         }
 
@@ -200,8 +233,9 @@ namespace Freehold.Art.Pack
             var scale = 0.85f + (variant % 4) * 0.1f;
             visual.transform.localScale = Vector3.one * scale;
             SnapToGround(visual, hover: 0f);
-            AddTrunkCollider(root);
-            root.AddComponent<ChoppableTree>();
+            AddTrunkCollider(root, out var bottom, out var radius);
+            var chop = root.AddComponent<ChoppableTree>();
+            chop.ConfigureTrunk(bottom, radius);
             return root;
         }
 

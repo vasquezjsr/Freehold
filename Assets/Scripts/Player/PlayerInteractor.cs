@@ -11,7 +11,8 @@ namespace Freehold.Player
     public class PlayerInteractor : MonoBehaviour
     {
         [SerializeField] float interactRange = 2.6f;
-        [SerializeField] float chopRange = 3.0f;
+        /// <summary>Axe reach measured from bark surface (not tree root center).</summary>
+        [SerializeField] float chopReachFromBark = 1.85f;
 
         Inventory _inventory;
         PlayerNeeds _needs;
@@ -178,7 +179,7 @@ namespace Freehold.Player
         ChoppableTree FindNearestTree()
         {
             ChoppableTree best = null;
-            var bestDist = chopRange;
+            var bestDist = chopReachFromBark;
             var trees = FindObjectsByType<ChoppableTree>(FindObjectsSortMode.None);
             foreach (var tree in trees)
             {
@@ -187,7 +188,8 @@ namespace Freehold.Player
                     continue;
                 }
 
-                var dist = Vector3.Distance(transform.position, tree.transform.position);
+                // Range from bark, so standing outside a thick trunk still prompts/chops.
+                var dist = tree.DistanceToBark(transform.position);
                 if (dist < bestDist)
                 {
                     bestDist = dist;

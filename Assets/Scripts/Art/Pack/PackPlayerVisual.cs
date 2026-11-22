@@ -296,30 +296,43 @@ namespace Freehold.Art.Pack
             SwingBone(_thighR, _thighRRest, -6f, rightAxis);
             SwingBone(_shinL, _shinLRest, 10f, rightAxis);
             SwingBone(_shinR, _shinRRest, 8f, rightAxis);
-            // Dominant right-hand axe swing.
-            var carryR = Quaternion.AngleAxis(-20f, CharacterForward()) * Quaternion.AngleAxis(25f, upAxis);
+            // Dominant right-hand axe swing (still adducted out of A-pose).
+            var carryR = Quaternion.AngleAxis(-38f, CharacterForward()) * Quaternion.AngleAxis(25f, upAxis);
             SwingBone(_armR, _armRRest, -swing, rightAxis, carryR);
             SwingBone(_foreR, _foreRRest, 25f + Mathf.Abs(swing) * 0.35f, rightAxis);
-            SwingBone(_armL, _armLRest, 12f, rightAxis, Quaternion.AngleAxis(18f, CharacterForward()));
+            SwingBone(_armL, _armLRest, 12f, rightAxis, Quaternion.AngleAxis(40f, CharacterForward()));
             SwingBone(_foreL, _foreLRest, 20f, rightAxis);
         }
 
         void ApplyIdle()
         {
-            var breathe = Mathf.Sin(Time.time * 1.7f) * 2.5f;
-            SetLocal(_hips, _hipsRest, Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 0.9f) * 1.2f));
-            SetLocal(_spine, _spineRest, Quaternion.Euler(breathe * 0.35f, 0f, 0f));
-            SetLocal(_chest, _chestRest, Quaternion.Euler(breathe * 0.2f, 0f, 0f));
-            SetLocal(_head, _headRest, Quaternion.Euler(-breathe * 0.25f, 0f, 0f));
-            SetLocal(_thighL, _thighLRest, Quaternion.Euler(3f, 0f, 0f));
-            SetLocal(_thighR, _thighRRest, Quaternion.Euler(-2f, 0f, 0f));
-            SetLocal(_shinL, _shinLRest, Quaternion.Euler(4f, 0f, 0f));
-            SetLocal(_shinR, _shinRRest, Quaternion.Euler(3f, 0f, 0f));
-            // Soften A-pose: pull arms toward body + slightly down.
-            SetLocal(_armL, _armLRest, Quaternion.Euler(10f, 0f, 22f));
-            SetLocal(_armR, _armRRest, Quaternion.Euler(10f, 0f, -22f));
-            SetLocal(_foreL, _foreLRest, Quaternion.Euler(8f, 0f, 0f));
-            SetLocal(_foreR, _foreRRest, Quaternion.Euler(8f, 0f, 0f));
+            // Rest is A-pose — use the same character-space SwingBone path as walk so
+            // Rigify local Euler axes cannot leave arms stuck ~45° out.
+            var breathe = Mathf.Sin(Time.time * 1.7f) * 2.2f;
+            var weight = Mathf.Sin(Time.time * 0.85f);
+            var rightAxis = CharacterRight();
+            var fwdAxis = CharacterForward();
+
+            SetLocal(_hips, _hipsRest, Quaternion.Euler(2f, weight * 2.5f, weight * 1.4f));
+            SetLocal(_spine, _spineRest, Quaternion.Euler(breathe * 0.4f, 0f, weight * 0.6f));
+            SetLocal(_chest, _chestRest, Quaternion.Euler(breathe * 0.25f, 0f, 0f));
+            SetLocal(_head, _headRest, Quaternion.Euler(-breathe * 0.3f, weight * 1.5f, 0f));
+
+            // Soft standing weight: slight knee bend, one hip a touch forward.
+            SwingBone(_thighL, _thighLRest, 6f + weight * 1.5f, rightAxis);
+            SwingBone(_thighR, _thighRRest, 4f - weight * 1.5f, rightAxis);
+            SwingBone(_shinL, _shinLRest, 10f, rightAxis);
+            SwingBone(_shinR, _shinRRest, 9f, rightAxis);
+
+            // Arms down at sides: full A-pose adduction (~45°) + slight hang/elbow bend.
+            const float armHang = 8f;
+            const float adduct = 46f;
+            var armCarryL = Quaternion.AngleAxis(adduct, fwdAxis);
+            var armCarryR = Quaternion.AngleAxis(-adduct, fwdAxis);
+            SwingBone(_armL, _armLRest, armHang + breathe * 0.15f, rightAxis, armCarryL);
+            SwingBone(_armR, _armRRest, armHang + breathe * 0.15f, rightAxis, armCarryR);
+            SwingBone(_foreL, _foreLRest, 14f, rightAxis);
+            SwingBone(_foreR, _foreRRest, 14f, rightAxis);
         }
 
         void ApplyWalkRun(bool sprinting)
@@ -352,10 +365,10 @@ namespace Freehold.Art.Pack
             SwingBone(_shinL, _shinLRest, shinL, rightAxis);
             SwingBone(_shinR, _shinRRest, shinR, rightAxis);
 
-            // Adduction out of A-pose + slight vertical bob on shoulders via carry.
-            var armCarryL = Quaternion.AngleAxis(18f, CharacterForward()) *
+            // Keep arms near the body while swinging (same adduction base as idle).
+            var armCarryL = Quaternion.AngleAxis(42f, CharacterForward()) *
                             Quaternion.AngleAxis(gaitCos * 4f, Vector3.up);
-            var armCarryR = Quaternion.AngleAxis(-18f, CharacterForward()) *
+            var armCarryR = Quaternion.AngleAxis(-42f, CharacterForward()) *
                             Quaternion.AngleAxis(-gaitCos * 4f, Vector3.up);
             SwingBone(_armL, _armLRest, leftArm, rightAxis, armCarryL);
             SwingBone(_armR, _armRRest, rightArm, rightAxis, armCarryR);
@@ -374,8 +387,8 @@ namespace Freehold.Art.Pack
             SwingBone(_thighR, _thighRRest, -10f, rightAxis);
             SwingBone(_shinL, _shinLRest, 32f, rightAxis);
             SwingBone(_shinR, _shinRRest, 26f, rightAxis);
-            SwingBone(_armL, _armLRest, -35f, rightAxis, Quaternion.AngleAxis(22f, CharacterForward()));
-            SwingBone(_armR, _armRRest, -30f, rightAxis, Quaternion.AngleAxis(-22f, CharacterForward()));
+            SwingBone(_armL, _armLRest, -35f, rightAxis, Quaternion.AngleAxis(40f, CharacterForward()));
+            SwingBone(_armR, _armRRest, -30f, rightAxis, Quaternion.AngleAxis(-40f, CharacterForward()));
             SwingBone(_foreL, _foreLRest, 10f, rightAxis);
             SwingBone(_foreR, _foreRRest, 10f, rightAxis);
         }
