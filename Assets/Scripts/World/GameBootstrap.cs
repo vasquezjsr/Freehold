@@ -1,4 +1,4 @@
-using Freehold.Art;
+using Freehold.Art.Pack;
 using Freehold.Crafting;
 using Freehold.Items;
 using Freehold.Needs;
@@ -79,7 +79,7 @@ namespace Freehold.World
             player.AddComponent<Inventory>();
             player.AddComponent<PlayerController>();
 
-            PlayerVisualBuilder.Build(player.transform);
+            PackPlayerVisual.TryAttach(player.transform);
             return player;
         }
 

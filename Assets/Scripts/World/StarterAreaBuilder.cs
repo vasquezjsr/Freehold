@@ -1,4 +1,5 @@
 using Freehold.Art;
+using Freehold.Art.Pack;
 using Freehold.Items;
 using UnityEngine;
 
@@ -25,7 +26,17 @@ namespace Freehold.World
                 "Ground");
             ground.transform.position = new Vector3(0f, -0.1f, 0f);
 
-            // Soft dirt patches (flat discs — ground plane only, not lighting)
+            for (var i = 0; i < 40; i++)
+            {
+                var pos = new Vector3(Random.Range(-28f, 28f), 0f, Random.Range(-28f, 28f));
+                if (pos.sqrMagnitude < 8f)
+                {
+                    continue;
+                }
+
+                PackPropFactory.CreateGrass(pos, i);
+            }
+
             for (var i = 0; i < 8; i++)
             {
                 var pos = new Vector3(Random.Range(-30f, 30f), 0.01f, Random.Range(-30f, 30f));
@@ -39,7 +50,7 @@ namespace Freehold.World
             }
         }
 
-        // Intentionally unchanged lighting / fog / sun setup (art pass does not touch lighting).
+        // Intentionally unchanged lighting / fog / sun setup.
         static void BuildSky()
         {
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
@@ -70,20 +81,18 @@ namespace Freehold.World
         {
             for (var i = 0; i < 28; i++)
             {
-                var pos = RandomRingPosition(6f, 36f);
-                PropFactory.CreateTree(pos, i);
+                PackPropFactory.CreateTree(RandomRingPosition(6f, 36f), i);
             }
 
             for (var i = 0; i < 18; i++)
             {
-                var pos = RandomRingPosition(4f, 34f);
-                PropFactory.CreateRock(pos, i);
+                PackPropFactory.CreateRock(RandomRingPosition(4f, 34f), i);
             }
         }
 
         static void CreateLandmarkPond()
         {
-            PropFactory.CreatePond(new Vector3(12f, 0.02f, -8f));
+            PackPropFactory.CreatePond(new Vector3(12f, 0.02f, -8f));
         }
 
         static void ScatterLoot()
@@ -112,7 +121,7 @@ namespace Freehold.World
 
         static void Spawn(ItemType type, Vector3 position)
         {
-            PropFactory.CreatePickup(type, position);
+            PackPropFactory.CreatePickup(type, position);
         }
 
         static Vector3 RandomRingPosition(float minRadius, float maxRadius)

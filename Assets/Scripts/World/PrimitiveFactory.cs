@@ -57,12 +57,12 @@ namespace Freehold.World
 
         public static ItemPickup CreatePickup(ItemType type, Vector3 position)
         {
-            return Freehold.Art.PropFactory.CreatePickup(type, position);
+            return Freehold.Art.Pack.PackPropFactory.CreatePickup(type, position);
         }
 
         public static Campfire CreateCampfire(Vector3 position)
         {
-            return Freehold.Art.PropFactory.CreateCampfire(position);
+            return Freehold.Art.Pack.PackPropFactory.CreateCampfire(position);
         }
     }
 
