@@ -14,12 +14,33 @@ namespace Freehold.World
         float _health;
         bool _falling;
         bool _felled;
+        float _trunkRadius = 0.45f;
+        Vector3 _trunkAxisLocal = Vector3.zero;
 
         public bool IsAvailable => !_falling && !_felled;
+        public float TrunkRadius => _trunkRadius;
 
         void Awake()
         {
             _health = maxHealth;
+        }
+
+        /// <summary>World-space trunk axis (XZ) and bark radius for collision-matched interact reach.</summary>
+        public void ConfigureTrunk(Vector3 worldBottomCenter, float radius)
+        {
+            _trunkRadius = Mathf.Max(0.2f, radius);
+            _trunkAxisLocal = transform.InverseTransformPoint(worldBottomCenter);
+            _trunkAxisLocal.y = 0f;
+        }
+
+        /// <summary>Horizontal distance from player to bark surface (0 = touching bark).</summary>
+        public float DistanceToBark(Vector3 worldPos)
+        {
+            var axis = transform.TransformPoint(_trunkAxisLocal);
+            var dx = worldPos.x - axis.x;
+            var dz = worldPos.z - axis.z;
+            var horiz = Mathf.Sqrt(dx * dx + dz * dz);
+            return Mathf.Max(0f, horiz - _trunkRadius);
         }
 
         public string GetPrompt(Inventory inventory)
