@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!55 &1
+PhysicsManager:
+  m_ObjectHideFlags: 0
+  serializedVersion: 14
+  gravity: {x: 0, y: -9.81, z: 0}
+  defaultMaterial: {fileID: 0}
+  bounceThreshold: 2
+  defaultMaxDepenetrationVelocity: 10
+  sleepThreshold: 0.005
+  defaultContactOffset: 0.01
+  defaultSolverIterations: 6
+  defaultSolverVelocityIterations: 1
+  queriesHitBackfaces: 0
+  queriesHitTriggers: 1
+  enableAdaptiveForce: 0
+  clothInterCollisionDistance: 0.1
+  clothInterCollisionStiffness: 0.2
+  contactsGeneration: 1
+  layerCollisionMatrix: ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+  autoSimulation: 1
+  autoSyncTransforms: 0
+  reuseCollisionCallbacks: 1
+  clothInterCollisionSettingsToggle: 0
+  clothGravity: {x: 0, y: -9.81, z: 0}
+  contactPairsMode: 0
+  broadphaseType: 0
+  frictionType: 0
+  enableEnhancedDeterminism: 0
+  enableUnifiedHeightmaps: 1
+  improvedPatchFriction: 0
+  solverType: 0
+  defaultMaxAngularSpeed: 50
+  clothGravityUseSceneGravity: 1
