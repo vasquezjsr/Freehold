@@ -1,3 +1,4 @@
+using Freehold.Art;
 using Freehold.Crafting;
 using Freehold.Items;
 using Freehold.Needs;
@@ -9,7 +10,7 @@ namespace Freehold.World
 {
     /// <summary>
     /// Builds the first survival scavenging slice at runtime so the project
-    /// is playable without hand-authored meshes or complex scene wiring.
+    /// is playable without hand-authored FBX dependencies.
     /// </summary>
     public class GameBootstrap : MonoBehaviour
     {
@@ -45,7 +46,7 @@ namespace Freehold.World
             Random.InitState(42);
             StarterAreaBuilder.Build();
 
-            var player = CreatePlayer(new Vector3(0f, 1f, 0f));
+            var player = CreatePlayer(new Vector3(0f, 0.05f, 0f));
             var camera = CreateCamera(player.transform);
 
             var inventory = player.GetComponent<Inventory>();
@@ -59,38 +60,26 @@ namespace Freehold.World
             var controller = player.GetComponent<PlayerController>();
             controller.BindCameraPivot(camera.Pivot);
 
-            Debug.Log("Freehold survival slice ready. Explore, scavenge, build a campfire, cook & boil.");
+            Debug.Log("Freehold survival slice ready (low-poly art pass). Explore, scavenge, build a campfire, cook & boil.");
         }
 
         static GameObject CreatePlayer(Vector3 position)
         {
-            var player = PrimitiveFactory.CreateColoredPrimitive(
-                PrimitiveType.Capsule,
-                position,
-                new Vector3(0.9f, 1f, 0.9f),
-                new Color(0.2f, 0.45f, 0.55f),
-                "Player",
-                false);
+            var player = new GameObject("Player");
+            player.transform.position = position;
 
             var controller = player.AddComponent<CharacterController>();
-            controller.height = 2f;
-            controller.radius = 0.4f;
-            controller.center = Vector3.up * 0.1f;
+            controller.height = 1.8f;
+            controller.radius = 0.35f;
+            controller.center = new Vector3(0f, 0.9f, 0f);
             controller.minMoveDistance = 0f;
+            controller.skinWidth = 0.08f;
 
             player.AddComponent<PlayerNeeds>();
             player.AddComponent<Inventory>();
             player.AddComponent<PlayerController>();
 
-            // Simple head marker for silhouette
-            PrimitiveFactory.CreateColoredPrimitive(
-                PrimitiveType.Sphere,
-                position + Vector3.up * 0.85f,
-                Vector3.one * 0.45f,
-                new Color(0.9f, 0.75f, 0.6f),
-                "Head",
-                false).transform.SetParent(player.transform, true);
-
+            PlayerVisualBuilder.Build(player.transform);
             return player;
         }
 

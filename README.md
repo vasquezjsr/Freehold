@@ -44,13 +44,20 @@ If Hub offers to upgrade from an older stamp, choose **6000.0.32f1** and open �
 
 ## What this slice includes
 
-- Third-person capsule player with walk, sprint, jump, and follow camera
+- Third-person **low-poly humanoid** player with walk, sprint, jump, follow camera, and procedural idle/walk/run/jump limb motion
 - Needs: **hunger**, **thirst**, **stamina** with HUD bars
-- Low-poly stylized starter clearing (procedural colored primitives: ground, trees, rocks, pond)
-- Ground loot: axe, pickaxe, knife, plastic bottle, dirty water, raw food, sticks, stones
+- Low-poly stylized starter clearing: pyramid-canopy trees, chunk rocks, pond with bank + shore stones
+- Recognizable ground loot meshes: axe, pickaxe, knife, bottles, food, sticks, stones
+- Detailed campfire (stone ring, logs, flickering flame) — place/light/cook/boil unchanged
 - Inventory list + interaction prompt
-- Campfire craft/place → light → cook raw food → boil dirty water
 - Survive loop: scavenge → manage needs → cook/boil → keep exploring
+
+## Art pass notes
+
+- Meshes are **authored in C#** under `Assets/Scripts/Art/` (no paid Asset Store packs). Runtime `Mesh` generation keeps the repo Editor-friendly without binary FBX.
+- **Lighting / fog / sun are unchanged** from the survival slice (art pass only).
+- Player animation is **procedural** (`PlayerLocomotionVisual`) — no Animator Controller. Character orients with movement as before.
+- Built-in RP flat Standard materials with a small stylized palette (`ArtPalette`).
 
 ## Project layout
 
@@ -59,6 +66,7 @@ Assets/
   Editor/           Freehold menu helpers
   Scenes/           StarterArea.unity
   Scripts/
+    Art/            Low-poly mesh builders, props, player visual
     Player/         Controller, camera, interaction
     Needs/          Hunger / thirst / stamina
     Items/          Types, pickups, inventory
@@ -76,8 +84,8 @@ Housing, cars, guns, economy, multiplayer, clans, land plots — not in this sli
 ## Notes for contributors
 
 - Freehold standardizes on **Unity 6** (`6000.0.32f1`).
-- Art is intentionally primitive-colored meshes so there is **no Asset Store dependency**.
 - Staying on **Built-in RP** — Standard shader materials, no URP conversion.
 - Input uses the legacy Input Manager (`activeInputHandler: 0`); New Input System is not required for this slice.
-- Git LFS is not required for this scaffold (no large binary assets yet).
+- Git LFS is not required for this scaffold (meshes are code-generated).
 - After first local open, commit any Unity-regenerated `.meta` / settings diffs if your team wants shared GUIDs.
+- Local refresh: open on `6000.0.32f1`, let scripts recompile, Play `StarterArea` — no extra import steps beyond normal Unity refresh.
