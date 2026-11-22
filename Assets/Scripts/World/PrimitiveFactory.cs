@@ -66,23 +66,12 @@ namespace Freehold.World
         }
     }
 
+    /// <summary>Deprecated — ground loot is static. Kept so old scenes don't break if referenced.</summary>
     public class PickupBob : MonoBehaviour
     {
-        Vector3 _origin;
-        float _seed;
-
         void Start()
         {
-            // Capture after SnapToGround so bob orbits the planted position.
-            _origin = transform.position;
-            _seed = Random.value * 10f;
-        }
-
-        void Update()
-        {
-            // Near-zero bob so loot reads as resting on the ground (spin only).
-            transform.position = _origin + Vector3.up * (Mathf.Sin(Time.time * 2f + _seed) * 0.005f);
-            transform.Rotate(Vector3.up, 35f * Time.deltaTime, Space.World);
+            enabled = false;
         }
     }
 }

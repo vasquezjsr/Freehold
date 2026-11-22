@@ -60,7 +60,7 @@ namespace Freehold.World
             var controller = player.GetComponent<PlayerController>();
             controller.BindCameraPivot(camera.Pivot);
 
-            Debug.Log("Freehold survival slice ready (Asset Store packs). Explore, scavenge, build a campfire, cook & boil.");
+            Debug.Log("Freehold ready. Scavenge, backpack slots, chop trees with axe, cook on campfire then take food.");
         }
 
         static GameObject CreatePlayer(Vector3 position)

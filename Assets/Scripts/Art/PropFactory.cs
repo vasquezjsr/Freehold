@@ -14,7 +14,7 @@ namespace Freehold.Art
             root.transform.position = position;
 
             var trunkMesh = LowPolyMeshes.TreeTrunk(1.4f + (variant % 3) * 0.15f);
-            var trunk = MeshBuilder.CreateMeshObject("Trunk", trunkMesh, LowPolyMeshes.Mat(ArtPalette.Bark), position, true);
+            var trunk = MeshBuilder.CreateMeshObject("Trunk", trunkMesh, LowPolyMeshes.Mat(ArtPalette.Bark), position, false);
             trunk.transform.SetParent(root.transform, true);
             trunk.transform.rotation = Quaternion.Euler(0f, variant * 37f, 0f);
 
@@ -24,10 +24,24 @@ namespace Freehold.Art
                 LowPolyMeshes.TreeCanopy(variant),
                 LowPolyMeshes.Mat(variant % 3 == 0 ? ArtPalette.LeafA : variant % 3 == 1 ? ArtPalette.LeafB : ArtPalette.LeafC),
                 position + Vector3.up * canopyY,
-                true);
+                false);
             canopy.transform.SetParent(root.transform, true);
             canopy.transform.localScale = Vector3.one * (0.95f + (variant % 4) * 0.08f);
             canopy.transform.rotation = Quaternion.Euler(0f, variant * 21f, 0f);
+
+            // Trunk-only capsule matching procedural trunk radius/height.
+            var trunkHeight = 1.5f + (variant % 3) * 0.15f;
+            var trunkRadius = 0.22f;
+            var colGo = new GameObject("UprightCollider");
+            colGo.transform.SetParent(root.transform, false);
+            colGo.transform.localPosition = Vector3.zero;
+            var col = colGo.AddComponent<CapsuleCollider>();
+            col.direction = 1;
+            col.height = trunkHeight;
+            col.radius = trunkRadius;
+            col.center = new Vector3(0f, trunkHeight * 0.5f, 0f);
+
+            root.AddComponent<ChoppableTree>();
             return root;
         }
 
@@ -52,7 +66,6 @@ namespace Freehold.Art
             var bank = MeshBuilder.CreateMeshObject("Bank", LowPolyMeshes.PondBank(), LowPolyMeshes.Mat(ArtPalette.PondEdge), position, false);
             bank.transform.SetParent(root.transform, true);
 
-            // Shore stones
             for (var i = 0; i < 6; i++)
             {
                 var a = i / 6f * Mathf.PI * 2f;
@@ -75,13 +88,12 @@ namespace Freehold.Art
             col.radius = 0.35f;
             col.center = new Vector3(0f, 0.15f, 0f);
 
-            // Procedural tool meshes are long-axis Y — lay flat; sticks tip slightly.
             var yaw = Random.Range(0f, 360f);
             if (type == ItemType.Axe || type == ItemType.Pickaxe || type == ItemType.Knife)
             {
                 go.transform.rotation = Quaternion.Euler(90f, yaw, 0f);
             }
-            else if (type == ItemType.Stick)
+            else if (type == ItemType.Stick || type == ItemType.Wood)
             {
                 go.transform.rotation = Quaternion.Euler(0f, yaw, 12f);
             }
@@ -93,7 +105,6 @@ namespace Freehold.Art
             Freehold.Art.Pack.PackPropFactory.SnapToGround(go, hover: 0.01f);
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Configure(type);
-            go.AddComponent<PickupBob>();
             return pickup;
         }
 
@@ -124,7 +135,6 @@ namespace Freehold.Art
             core.transform.SetParent(flameRoot.transform, true);
             flameRoot.AddComponent<FlameFlicker>();
 
-            // Existing campfire point light values (art pass does not change lighting setup).
             var lightGo = new GameObject("FireLight");
             lightGo.transform.SetParent(root.transform, false);
             lightGo.transform.localPosition = Vector3.up * 0.8f;

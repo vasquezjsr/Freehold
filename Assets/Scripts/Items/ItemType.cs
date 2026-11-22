@@ -11,6 +11,8 @@ namespace Freehold.Items
         RawFood,
         CookedFood,
         Stick,
-        Stone
+        Stone,
+        Wood,
+        Backpack
     }
 }

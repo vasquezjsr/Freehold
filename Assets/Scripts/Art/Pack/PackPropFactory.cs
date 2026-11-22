@@ -21,15 +21,16 @@ namespace Freehold.Art.Pack
             "tree_common_01", "tree_common_02", "tree_common_03"
         };
 
-        // Volume bushes only (Y-up after pack's baked Z-up correction). No flat ground-card props.
+        // Large volume bushes — solid collision.
         static readonly string[] BigBushPrefabs =
         {
             "bush_03", "bush_04", "bush_05"
         };
 
+        // Small bushes / grass only — walk-through (no collider).
         static readonly string[] GrassPrefabs =
         {
-            "bush_01", "bush_02", "bush_03"
+            "bush_01", "bush_02"
         };
 
         static Bounds CombinedWorldBounds(GameObject go)
@@ -72,20 +73,17 @@ namespace Freehold.Art.Pack
         /// World-upright capsule on an unrotated child. Pack prefabs keep ~-90° X on the root;
         /// a CapsuleCollider on that root with direction=Y becomes a sideways invisible wall.
         /// </summary>
-        static void AddUprightCapsuleCollider(GameObject go, float radiusScale, float maxRadius)
+        static void AddUprightCapsuleCollider(GameObject go, float radius, float height, Vector3 worldBottomCenter)
         {
             ClearColliders(go);
 
-            var bounds = CombinedWorldBounds(go);
-            var height = Mathf.Max(0.45f, bounds.size.y);
-            var radius = Mathf.Clamp(Mathf.Max(bounds.size.x, bounds.size.z) * 0.5f * radiusScale, 0.1f, maxRadius);
+            height = Mathf.Max(0.45f, height);
+            radius = Mathf.Max(0.12f, radius);
 
             var colGo = new GameObject("UprightCollider");
             colGo.transform.SetParent(go.transform, false);
-            // World-aligned so capsule Y == world up regardless of FBX upright tilt on the parent.
-            colGo.transform.position = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            colGo.transform.position = worldBottomCenter;
             colGo.transform.rotation = Quaternion.identity;
-            // Cancel parent lossy scale so height/radius stay in world units.
             var lossy = colGo.transform.lossyScale;
             colGo.transform.localScale = new Vector3(
                 1f / Mathf.Max(0.001f, Mathf.Abs(lossy.x)),
@@ -99,22 +97,112 @@ namespace Freehold.Art.Pack
             col.center = new Vector3(0f, height * 0.5f, 0f);
         }
 
+        static void AddBushCapsuleCollider(GameObject go, float radiusScale, float maxRadius)
+        {
+            var bounds = CombinedWorldBounds(go);
+            var height = Mathf.Max(0.45f, bounds.size.y * 0.85f);
+            var radius = Mathf.Clamp(Mathf.Max(bounds.size.x, bounds.size.z) * 0.5f * radiusScale, 0.2f, maxRadius);
+            AddUprightCapsuleCollider(go, radius, height, new Vector3(bounds.center.x, bounds.min.y, bounds.center.z));
+        }
+
+        /// <summary>
+        /// Trunk radius/height from mesh samples in the lower portion of the tree (ignores canopy width).
+        /// </summary>
+        static bool TryEstimateTrunk(GameObject go, out Vector3 bottomCenter, out float radius, out float height)
+        {
+            bottomCenter = go.transform.position;
+            radius = 0.28f;
+            height = 2.2f;
+
+            var filters = go.GetComponentsInChildren<MeshFilter>();
+            if (filters.Length == 0)
+            {
+                return false;
+            }
+
+            var full = CombinedWorldBounds(go);
+            var bandMaxY = full.min.y + Mathf.Max(0.6f, full.size.y * 0.38f);
+            var bandMinY = full.min.y;
+
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            var samples = 0;
+
+            for (var i = 0; i < filters.Length; i++)
+            {
+                var mesh = filters[i].sharedMesh;
+                if (mesh == null)
+                {
+                    continue;
+                }
+
+                var verts = mesh.vertices;
+                var matrix = filters[i].transform.localToWorldMatrix;
+                // Stride sample for large meshes.
+                var step = Mathf.Max(1, verts.Length / 400);
+                for (var v = 0; v < verts.Length; v += step)
+                {
+                    var world = matrix.MultiplyPoint3x4(verts[v]);
+                    if (world.y < bandMinY - 0.05f || world.y > bandMaxY)
+                    {
+                        continue;
+                    }
+
+                    minX = Mathf.Min(minX, world.x);
+                    maxX = Mathf.Max(maxX, world.x);
+                    minZ = Mathf.Min(minZ, world.z);
+                    maxZ = Mathf.Max(maxZ, world.z);
+                    minY = Mathf.Min(minY, world.y);
+                    maxY = Mathf.Max(maxY, world.y);
+                    samples++;
+                }
+            }
+
+            if (samples < 8)
+            {
+                // Fallback: narrow fraction of full AABB.
+                radius = Mathf.Clamp(Mathf.Max(full.size.x, full.size.z) * 0.12f, 0.22f, 0.55f);
+                height = Mathf.Clamp(full.size.y * 0.55f, 1.6f, 4.5f);
+                bottomCenter = new Vector3(full.center.x, full.min.y, full.center.z);
+                return true;
+            }
+
+            var rx = (maxX - minX) * 0.5f;
+            var rz = (maxZ - minZ) * 0.5f;
+            radius = Mathf.Clamp(Mathf.Max(rx, rz) * 0.95f, 0.22f, 0.65f);
+            height = Mathf.Clamp(Mathf.Max(maxY - minY, full.size.y * 0.45f), 1.6f, 5f);
+            bottomCenter = new Vector3((minX + maxX) * 0.5f, minY, (minZ + maxZ) * 0.5f);
+            return true;
+        }
+
+        static void AddTrunkCollider(GameObject go)
+        {
+            Physics.SyncTransforms();
+            TryEstimateTrunk(go, out var bottom, out var radius, out var height);
+            AddUprightCapsuleCollider(go, radius, height, bottom);
+        }
+
         public static GameObject CreateTree(Vector3 position, int variant)
         {
             var name = TreePrefabs[variant % TreePrefabs.Length];
-            var go = InstantiateNaturePrefab(name, $"Tree_{name}", position, addCollider: false);
-            if (go == null)
+            var visual = InstantiateNaturePrefab(name, $"TreeVisual_{name}", position, addCollider: false);
+            if (visual == null)
             {
                 return Freehold.Art.PropFactory.CreateTree(position, variant);
             }
 
-            ApplyYawPreservingUpright(go.transform, variant * 37f);
+            // World-aligned root so trunk capsule stays upright even if the FBX bake is tilted.
+            var root = new GameObject($"Tree_{name}");
+            root.transform.position = position;
+            visual.transform.SetParent(root.transform, true);
+            ApplyYawPreservingUpright(visual.transform, variant * 37f);
             var scale = 0.85f + (variant % 4) * 0.1f;
-            go.transform.localScale = Vector3.one * scale;
-            SnapToGround(go, hover: 0f);
-            // Narrow trunk capsule — canopy must not form a wall. Build after plant so it matches mesh.
-            AddUprightCapsuleCollider(go, radiusScale: 0.18f, maxRadius: 0.45f);
-            return go;
+            visual.transform.localScale = Vector3.one * scale;
+            SnapToGround(visual, hover: 0f);
+            AddTrunkCollider(root);
+            root.AddComponent<ChoppableTree>();
+            return root;
         }
 
         /// <summary>Small bushes / grass dressing — walk-through (no collider).</summary>
@@ -149,7 +237,7 @@ namespace Freehold.Art.Pack
             ApplyYawPreservingUpright(go.transform, variant * 45f);
             go.transform.localScale = Vector3.one * (0.85f + (variant % 5) * 0.12f);
             SnapToGround(go, hover: 0f);
-            AddUprightCapsuleCollider(go, radiusScale: 0.42f, maxRadius: 0.85f);
+            AddBushCapsuleCollider(go, radiusScale: 0.48f, maxRadius: 0.95f);
             return go;
         }
 
@@ -294,10 +382,18 @@ namespace Freehold.Art.Pack
                          ?? CreateKenneyObject("log_stack", $"Pickup_{def.DisplayName}", position, false);
                     if (go != null) go.transform.localScale = Vector3.one * 0.35f;
                     break;
+                case ItemType.Wood:
+                    go = CreateKenneyObject("log_large", $"Pickup_{def.DisplayName}", position, false)
+                         ?? CreateKenneyObject("log_stack", $"Pickup_{def.DisplayName}", position, false);
+                    if (go != null) go.transform.localScale = Vector3.one * 0.55f;
+                    break;
                 case ItemType.Stone:
                     go = CreateKenneyObject("stone_smallA", $"Pickup_{def.DisplayName}", position, false)
                          ?? CreateKenneyObject("rock_smallA", $"Pickup_{def.DisplayName}", position, false);
                     if (go != null) go.transform.localScale = Vector3.one * 0.5f;
+                    break;
+                case ItemType.Backpack:
+                    go = CreateQuaterniusObject("Bag", $"Pickup_{def.DisplayName}", position, 0.5f);
                     break;
             }
 
@@ -329,7 +425,7 @@ namespace Freehold.Art.Pack
 
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Configure(type);
-            go.AddComponent<PickupBob>();
+            // Ground loot stays static — no bob/spin.
             return pickup;
         }
 
@@ -347,6 +443,7 @@ namespace Freehold.Art.Pack
                 case ItemType.Knife:
                     return Quaternion.Euler(90f, yaw, 0f);
                 case ItemType.Stick:
+                case ItemType.Wood:
                     return Quaternion.Euler(0f, yaw, Random.Range(-6f, 6f));
                 default:
                     return Quaternion.Euler(0f, yaw, 0f);
@@ -519,7 +616,7 @@ namespace Freehold.Art.Pack
 
             if (addCollider && go.GetComponentInChildren<Collider>() == null)
             {
-                AddUprightCapsuleCollider(go, radiusScale: 0.25f, maxRadius: 0.5f);
+                AddBushCapsuleCollider(go, radiusScale: 0.35f, maxRadius: 0.6f);
             }
 
             return go;

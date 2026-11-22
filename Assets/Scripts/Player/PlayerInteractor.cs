@@ -1,7 +1,9 @@
+using Freehold.Art.Pack;
 using Freehold.Crafting;
 using Freehold.Items;
 using Freehold.Needs;
 using Freehold.UI;
+using Freehold.World;
 using UnityEngine;
 
 namespace Freehold.Player
@@ -9,11 +11,13 @@ namespace Freehold.Player
     public class PlayerInteractor : MonoBehaviour
     {
         [SerializeField] float interactRange = 2.6f;
+        [SerializeField] float chopRange = 3.0f;
 
         Inventory _inventory;
         PlayerNeeds _needs;
         InteractionPrompt _prompt;
         CampfirePlacer _campfirePlacer;
+        float _chopCooldownUntil;
 
         public void Configure(Inventory inventory, PlayerNeeds needs, InteractionPrompt prompt, CampfirePlacer placer)
         {
@@ -34,14 +38,19 @@ namespace Freehold.Player
 
             var nearestPickup = FindNearestPickup();
             var nearestCampfire = FindNearestCampfire();
+            var nearestTree = FindNearestTree();
 
             if (nearestPickup != null)
             {
                 _prompt.Show($"[E] Pick up {nearestPickup.PromptLabel}");
                 if (Input.GetKeyDown(KeyCode.E))
                 {
-                    nearestPickup.Collect(_inventory);
+                    if (!nearestPickup.TryCollect(_inventory, out var fail))
+                    {
+                        _prompt.Flash(fail ?? "Cannot pick up");
+                    }
                 }
+
                 return;
             }
 
@@ -50,9 +59,41 @@ namespace Freehold.Player
                 _prompt.Show(nearestCampfire.GetPrompt(_inventory));
                 if (Input.GetKeyDown(KeyCode.E))
                 {
-                    nearestCampfire.Interact(_inventory, _needs);
+                    var msg = nearestCampfire.Interact(_inventory, _needs);
+                    if (!string.IsNullOrEmpty(msg))
+                    {
+                        _prompt.Flash(msg);
+                    }
                 }
+
                 return;
+            }
+
+            if (nearestTree != null && _inventory.Has(ItemType.Axe) && Time.time >= _chopCooldownUntil)
+            {
+                _prompt.Show(nearestTree.GetPrompt(_inventory));
+                if (Input.GetKeyDown(KeyCode.E))
+                {
+                    if (nearestTree.TryChop(_inventory, out var felled))
+                    {
+                        PackRigLocomotionVisual.TriggerChop(gameObject);
+                        PlayerLocomotionVisualChop.Trigger(gameObject);
+                        _chopCooldownUntil = Time.time + 0.55f;
+                        _prompt.Flash(felled ? "Tree felled — wood & sticks" : "Chop!");
+                    }
+                }
+
+                return;
+            }
+
+            if (nearestTree != null && !_inventory.Has(ItemType.Axe))
+            {
+                var tip = nearestTree.GetPrompt(_inventory);
+                if (!string.IsNullOrEmpty(tip))
+                {
+                    _prompt.Show(tip);
+                    return;
+                }
             }
 
             if (_campfirePlacer != null && _campfirePlacer.CanPlace(_inventory))
@@ -62,6 +103,7 @@ namespace Freehold.Player
                 {
                     _campfirePlacer.TryPlace(_inventory, transform);
                 }
+
                 return;
             }
 
@@ -83,7 +125,6 @@ namespace Freehold.Player
                 _prompt.Flash("Drank clean water (+thirst)");
             }
 
-            // Dirty water is drinkable but less effective — boil for better restore.
             if (Input.GetKeyDown(KeyCode.Y) && _inventory.TryConsume(ItemType.DirtyWaterBottle))
             {
                 _needs.Drink(12f);
@@ -132,6 +173,39 @@ namespace Freehold.Player
             }
 
             return best;
+        }
+
+        ChoppableTree FindNearestTree()
+        {
+            ChoppableTree best = null;
+            var bestDist = chopRange;
+            var trees = FindObjectsByType<ChoppableTree>(FindObjectsSortMode.None);
+            foreach (var tree in trees)
+            {
+                if (tree == null || !tree.IsAvailable)
+                {
+                    continue;
+                }
+
+                var dist = Vector3.Distance(transform.position, tree.transform.position);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    best = tree;
+                }
+            }
+
+            return best;
+        }
+    }
+
+    /// <summary>Chop swing hook for procedural humanoid fallback.</summary>
+    public static class PlayerLocomotionVisualChop
+    {
+        public static void Trigger(GameObject player)
+        {
+            var loco = player.GetComponent<Freehold.Art.PlayerLocomotionVisual>();
+            loco?.PlayChop();
         }
     }
 }
