@@ -15,11 +15,13 @@ namespace Freehold.Art.Pack
 
         public const string NaturePrefabRoot = "Assets/BigRookGames/Nature Pack/Prefabs";
         public const string NatureMaterialRoot = "Assets/BigRookGames/Nature Pack/Materials";
+        public const string NatureTextureRoot = "Assets/BigRookGames/Nature Pack/Textures";
 
         public static string Kenney(string fileNameWithoutExt) => Path.Combine(KenneyModels, fileNameWithoutExt + ".obj");
         public static string Quaternius(string fileNameWithoutExt) => Path.Combine(QuaterniusModels, fileNameWithoutExt + ".obj");
 
         public static string NaturePrefab(string prefabName) => $"{NaturePrefabRoot}/{prefabName}.prefab";
         public static string NatureMaterial(string materialName) => $"{NatureMaterialRoot}/{materialName}.mat";
+        public static string NatureTexture(string fileName) => $"{NatureTextureRoot}/{fileName}";
     }
 }
