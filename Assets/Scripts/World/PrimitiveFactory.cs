@@ -73,13 +73,15 @@ namespace Freehold.World
 
         void Start()
         {
+            // Capture after SnapToGround so bob orbits the planted position.
             _origin = transform.position;
             _seed = Random.value * 10f;
         }
 
         void Update()
         {
-            transform.position = _origin + Vector3.up * (Mathf.Sin(Time.time * 2f + _seed) * 0.08f);
+            // Small lift only — keep pickups reading as on the ground.
+            transform.position = _origin + Vector3.up * (Mathf.Sin(Time.time * 2f + _seed) * 0.04f + 0.02f);
             transform.Rotate(Vector3.up, 40f * Time.deltaTime, Space.World);
         }
     }

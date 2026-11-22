@@ -21,9 +21,9 @@ namespace Freehold.Art.Pack
             "tree_common_01", "tree_common_02", "tree_common_03"
         };
 
-        static readonly string[] BushPrefabs =
+        static readonly string[] BigBushPrefabs =
         {
-            "bush_01", "bush_02", "bush_03", "bush_04", "bush_05", "bush_border"
+            "bush_03", "bush_04", "bush_border"
         };
 
         static readonly string[] GrassPrefabs =
@@ -83,38 +83,34 @@ namespace Freehold.Art.Pack
         }
 
         /// <summary>
-        /// Capsule around the trunk/volume after upright orientation — avoids sideways mesh colliders.
+        /// World-upright capsule on an unrotated child. Pack prefabs keep ~-90° X on the root;
+        /// a CapsuleCollider on that root with direction=Y becomes a sideways invisible wall.
         /// </summary>
         static void AddUprightCapsuleCollider(GameObject go, float radiusScale, float maxRadius)
         {
             ClearColliders(go);
 
-            var renderers = go.GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0)
-            {
-                var capsule = go.AddComponent<CapsuleCollider>();
-                capsule.height = 2f;
-                capsule.radius = 0.35f;
-                capsule.center = new Vector3(0f, 1f, 0f);
-                return;
-            }
-
             var bounds = CombinedWorldBounds(go);
-            var lossy = go.transform.lossyScale;
-            var sx = Mathf.Max(0.001f, Mathf.Abs(lossy.x));
-            var sy = Mathf.Max(0.001f, Mathf.Abs(lossy.y));
-            var sz = Mathf.Max(0.001f, Mathf.Abs(lossy.z));
+            var height = Mathf.Max(0.45f, bounds.size.y);
+            var radius = Mathf.Clamp(Mathf.Max(bounds.size.x, bounds.size.z) * 0.5f * radiusScale, 0.1f, maxRadius);
 
-            var localCenter = go.transform.InverseTransformPoint(bounds.center);
-            var height = Mathf.Max(0.4f, bounds.size.y / sy);
-            var radiusWorld = Mathf.Max(bounds.size.x, bounds.size.z) * 0.5f * radiusScale;
-            var radius = Mathf.Clamp(radiusWorld / Mathf.Max(sx, sz), 0.12f, maxRadius);
+            var colGo = new GameObject("UprightCollider");
+            colGo.transform.SetParent(go.transform, false);
+            // World-aligned so capsule Y == world up regardless of FBX upright tilt on the parent.
+            colGo.transform.position = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            colGo.transform.rotation = Quaternion.identity;
+            // Cancel parent lossy scale so height/radius stay in world units.
+            var lossy = colGo.transform.lossyScale;
+            colGo.transform.localScale = new Vector3(
+                1f / Mathf.Max(0.001f, Mathf.Abs(lossy.x)),
+                1f / Mathf.Max(0.001f, Mathf.Abs(lossy.y)),
+                1f / Mathf.Max(0.001f, Mathf.Abs(lossy.z)));
 
-            var col = go.AddComponent<CapsuleCollider>();
-            col.direction = 1; // Y-axis
+            var col = colGo.AddComponent<CapsuleCollider>();
+            col.direction = 1; // Y
             col.height = height;
             col.radius = radius;
-            col.center = new Vector3(0f, Mathf.Max(height * 0.5f, localCenter.y), 0f);
+            col.center = new Vector3(0f, height * 0.5f, 0f);
         }
 
         public static GameObject CreateTree(Vector3 position, int variant)
@@ -129,11 +125,12 @@ namespace Freehold.Art.Pack
             ApplyYawPreservingUpright(go.transform, variant * 37f);
             var scale = 0.85f + (variant % 4) * 0.1f;
             go.transform.localScale = Vector3.one * scale;
-            // Trunk-only-ish capsule so canopy doesn't form a wall / fallen-log barrier.
-            AddUprightCapsuleCollider(go, radiusScale: 0.22f, maxRadius: 0.55f);
+            // Narrow trunk capsule — canopy must not form a wall.
+            AddUprightCapsuleCollider(go, radiusScale: 0.18f, maxRadius: 0.45f);
             return go;
         }
 
+        /// <summary>Small bushes / grass dressing — walk-through (no collider).</summary>
         public static GameObject CreateGrass(Vector3 position, int variant)
         {
             var name = GrassPrefabs[variant % GrassPrefabs.Length];
@@ -149,19 +146,21 @@ namespace Freehold.Art.Pack
             return go;
         }
 
+        /// <summary>
+        /// Big bushes (nature pack has no rocks) — solid upright capsule.
+        /// </summary>
         public static GameObject CreateRock(Vector3 position, int variant)
         {
-            // Nature pack has no rock meshes — use denser bushes / borders as ground dressing.
-            var name = BushPrefabs[variant % BushPrefabs.Length];
-            var go = InstantiateNaturePrefab(name, $"RockDressing_{name}", position, addCollider: false);
+            var name = BigBushPrefabs[variant % BigBushPrefabs.Length];
+            var go = InstantiateNaturePrefab(name, $"BigBush_{name}", position, addCollider: false);
             if (go == null)
             {
                 return Freehold.Art.PropFactory.CreateRock(position, variant);
             }
 
             ApplyYawPreservingUpright(go.transform, variant * 45f);
-            go.transform.localScale = Vector3.one * (0.55f + (variant % 5) * 0.08f);
-            AddUprightCapsuleCollider(go, radiusScale: 0.35f, maxRadius: 0.7f);
+            go.transform.localScale = Vector3.one * (0.85f + (variant % 5) * 0.12f);
+            AddUprightCapsuleCollider(go, radiusScale: 0.42f, maxRadius: 0.85f);
             return go;
         }
 
@@ -332,10 +331,68 @@ namespace Freehold.Art.Pack
             }
 
             go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), type == ItemType.Axe || type == ItemType.Pickaxe ? 15f : 0f);
+            SnapToGround(go);
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Configure(type);
             go.AddComponent<PickupBob>();
             return pickup;
+        }
+
+        /// <summary>Raycast down and plant mesh bottom on the hit surface (or y=0 ground top).</summary>
+        public static void SnapToGround(GameObject go, float hover = 0.02f)
+        {
+            if (go == null)
+            {
+                return;
+            }
+
+            var pos = go.transform.position;
+            var rayOrigin = pos + Vector3.up * 8f;
+            var groundY = 0f;
+            var hits = Physics.RaycastAll(rayOrigin, Vector3.down, 24f, ~0, QueryTriggerInteraction.Ignore);
+            var bestDist = float.MaxValue;
+            for (var i = 0; i < hits.Length; i++)
+            {
+                var hit = hits[i];
+                // Skip vegetation capsules / self — only plant on the walkable ground plane.
+                if (hit.collider == null || hit.collider.transform.IsChildOf(go.transform))
+                {
+                    continue;
+                }
+
+                if (hit.collider.gameObject.name == "UprightCollider")
+                {
+                    continue;
+                }
+
+                if (hit.normal.y < 0.5f)
+                {
+                    continue;
+                }
+
+                if (hit.distance < bestDist)
+                {
+                    bestDist = hit.distance;
+                    groundY = hit.point.y;
+                }
+            }
+
+            go.transform.position = new Vector3(pos.x, groundY + hover, pos.z);
+
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+            {
+                return;
+            }
+
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            var lift = (groundY + hover) - bounds.min.y;
+            go.transform.position += Vector3.up * lift;
         }
 
         public static Campfire CreateCampfire(Vector3 position)

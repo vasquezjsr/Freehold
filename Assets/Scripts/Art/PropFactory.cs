@@ -85,6 +85,7 @@ namespace Freehold.Art
                 go.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
             }
 
+            Freehold.Art.Pack.PackPropFactory.SnapToGround(go);
             var pickup = go.AddComponent<ItemPickup>();
             pickup.Configure(type);
             go.AddComponent<PickupBob>();

@@ -100,25 +100,30 @@ namespace Freehold.Art
 
         void ApplyWalkRunPose(bool sprinting)
         {
-            var amp = sprinting ? 38f : 26f;
-            var swing = Mathf.Sin(_phase) * amp;
-            var swingOpp = -swing;
-            var shinBend = Mathf.Max(0f, -Mathf.Sin(_phase)) * (sprinting ? 50f : 35f);
-            var shinBendOpp = Mathf.Max(0f, Mathf.Sin(_phase)) * (sprinting ? 50f : 35f);
+            // Shared gait: left leg forward with right arm forward (contralateral).
+            var gait = Mathf.Sin(_phase);
+            var legAmp = sprinting ? 38f : 28f;
+            var armAmp = sprinting ? 32f : 22f;
+            var leftLeg = gait * legAmp;
+            var rightLeg = -leftLeg;
+            var leftArm = -gait * armAmp;
+            var rightArm = gait * armAmp;
+            var shinBend = Mathf.Max(0f, -gait) * (sprinting ? 50f : 35f);
+            var shinBendOpp = Mathf.Max(0f, gait) * (sprinting ? 50f : 35f);
 
-            _hips.localRotation = Quaternion.Euler(sprinting ? 8f : 3f, 0f, Mathf.Sin(_phase) * 2f);
-            _torso.localRotation = Quaternion.Euler(sprinting ? 10f : 4f, Mathf.Sin(_phase) * 4f, 0f);
-            _head.localRotation = Quaternion.Euler(sprinting ? -4f : 0f, 0f, 0f);
+            _hips.localRotation = Quaternion.Euler(sprinting ? 8f : 3f, 0f, gait * 2f);
+            _torso.localRotation = Quaternion.Euler(sprinting ? 10f : 4f, gait * 4f, 0f);
+            _head.localRotation = Quaternion.Euler(sprinting ? -4f : 0f, -gait * 2f, 0f);
 
-            _leftThigh.localRotation = Quaternion.Euler(swing, 0f, 0f);
-            _rightThigh.localRotation = Quaternion.Euler(swingOpp, 0f, 0f);
+            _leftThigh.localRotation = Quaternion.Euler(leftLeg, 0f, 0f);
+            _rightThigh.localRotation = Quaternion.Euler(rightLeg, 0f, 0f);
             _leftShin.localRotation = Quaternion.Euler(shinBend, 0f, 0f);
             _rightShin.localRotation = Quaternion.Euler(shinBendOpp, 0f, 0f);
 
-            _leftUpper.localRotation = Quaternion.Euler(swingOpp * 0.7f, 0f, 10f);
-            _rightUpper.localRotation = Quaternion.Euler(swing * 0.7f, 0f, -10f);
-            _leftLower.localRotation = Quaternion.Euler(-20f - Mathf.Abs(swingOpp) * 0.2f, 0f, 0f);
-            _rightLower.localRotation = Quaternion.Euler(-20f - Mathf.Abs(swing) * 0.2f, 0f, 0f);
+            _leftUpper.localRotation = Quaternion.Euler(leftArm, 0f, 10f);
+            _rightUpper.localRotation = Quaternion.Euler(rightArm, 0f, -10f);
+            _leftLower.localRotation = Quaternion.Euler(-18f - Mathf.Abs(leftArm) * 0.25f, 0f, 0f);
+            _rightLower.localRotation = Quaternion.Euler(-18f - Mathf.Abs(rightArm) * 0.25f, 0f, 0f);
         }
 
         void ApplyJumpPose()

@@ -124,11 +124,13 @@ namespace Freehold.Art.Pack
 
     /// <summary>
     /// Procedural idle / walk / run / jump on Floreswa Blender Rigify bones.
-    /// Rest pose is A-pose; deltas are applied on top of captured rest locals.
+    /// Rest pose is A-pose. Walk uses one gait phase: arms swing opposite legs in character space
+    /// so Rigify local axes don't desync the contralateral gait.
     /// </summary>
     public class PackRigLocomotionVisual : MonoBehaviour
     {
         CharacterController _controller;
+        Transform _visualRoot;
         float _phase;
 
         Transform _hips;
@@ -151,6 +153,7 @@ namespace Freehold.Art.Pack
         public bool TryBind(Transform visualRoot, CharacterController controller)
         {
             _controller = controller;
+            _visualRoot = visualRoot;
             if (visualRoot == null)
             {
                 return false;
@@ -248,63 +251,92 @@ namespace Freehold.Art.Pack
         void ApplyIdle()
         {
             var breathe = Mathf.Sin(Time.time * 1.7f) * 2.5f;
-            Set(_hips, _hipsRest, Quaternion.identity);
-            Set(_spine, _spineRest, Quaternion.Euler(breathe * 0.35f, 0f, 0f));
-            Set(_chest, _chestRest, Quaternion.Euler(breathe * 0.2f, 0f, 0f));
-            Set(_head, _headRest, Quaternion.Euler(-breathe * 0.25f, 0f, 0f));
-            Set(_thighL, _thighLRest, Quaternion.Euler(3f, 0f, 0f));
-            Set(_thighR, _thighRRest, Quaternion.Euler(-2f, 0f, 0f));
-            Set(_shinL, _shinLRest, Quaternion.Euler(4f, 0f, 0f));
-            Set(_shinR, _shinRRest, Quaternion.Euler(3f, 0f, 0f));
+            SetLocal(_hips, _hipsRest, Quaternion.identity);
+            SetLocal(_spine, _spineRest, Quaternion.Euler(breathe * 0.35f, 0f, 0f));
+            SetLocal(_chest, _chestRest, Quaternion.Euler(breathe * 0.2f, 0f, 0f));
+            SetLocal(_head, _headRest, Quaternion.Euler(-breathe * 0.25f, 0f, 0f));
+            SetLocal(_thighL, _thighLRest, Quaternion.Euler(3f, 0f, 0f));
+            SetLocal(_thighR, _thighRRest, Quaternion.Euler(-2f, 0f, 0f));
+            SetLocal(_shinL, _shinLRest, Quaternion.Euler(4f, 0f, 0f));
+            SetLocal(_shinR, _shinRRest, Quaternion.Euler(3f, 0f, 0f));
             // Soften A-pose: pull arms slightly toward body + down.
-            Set(_armL, _armLRest, Quaternion.Euler(8f, 0f, 18f));
-            Set(_armR, _armRRest, Quaternion.Euler(8f, 0f, -18f));
-            Set(_foreL, _foreLRest, Quaternion.Euler(6f, 0f, 0f));
-            Set(_foreR, _foreRRest, Quaternion.Euler(6f, 0f, 0f));
+            SetLocal(_armL, _armLRest, Quaternion.Euler(8f, 0f, 18f));
+            SetLocal(_armR, _armRRest, Quaternion.Euler(8f, 0f, -18f));
+            SetLocal(_foreL, _foreLRest, Quaternion.Euler(6f, 0f, 0f));
+            SetLocal(_foreR, _foreRRest, Quaternion.Euler(6f, 0f, 0f));
         }
 
         void ApplyWalkRun(bool sprinting)
         {
-            var amp = sprinting ? 36f : 26f;
-            var swing = Mathf.Sin(_phase) * amp;
-            var swingOpp = -swing;
-            var shinBend = Mathf.Max(0f, -Mathf.Sin(_phase)) * (sprinting ? 48f : 34f);
-            var shinBendOpp = Mathf.Max(0f, Mathf.Sin(_phase)) * (sprinting ? 48f : 34f);
+            // One shared gait phase. Positive = left leg forward / right arm forward (natural contralateral).
+            var legAmp = sprinting ? 38f : 28f;
+            var armAmp = sprinting ? 34f : 24f;
+            var gait = Mathf.Sin(_phase);
+            var leftLeg = gait * legAmp;
+            var rightLeg = -leftLeg;
+            var leftArm = -gait * armAmp;   // opposite left leg
+            var rightArm = gait * armAmp;   // opposite right leg
+            var shinL = Mathf.Max(0f, -gait) * (sprinting ? 50f : 36f);
+            var shinR = Mathf.Max(0f, gait) * (sprinting ? 50f : 36f);
             var lean = sprinting ? 10f : 4f;
+            var sway = gait * 2.5f;
 
-            Set(_hips, _hipsRest, Quaternion.Euler(lean * 0.4f, 0f, Mathf.Sin(_phase) * 2f));
-            Set(_spine, _spineRest, Quaternion.Euler(lean * 0.5f, Mathf.Sin(_phase) * 3f, 0f));
-            Set(_chest, _chestRest, Quaternion.Euler(lean * 0.35f, Mathf.Sin(_phase) * 2f, 0f));
-            Set(_head, _headRest, Quaternion.Euler(sprinting ? -4f : 0f, 0f, 0f));
+            var rightAxis = CharacterRight();
 
-            Set(_thighL, _thighLRest, Quaternion.Euler(swing, 0f, 0f));
-            Set(_thighR, _thighRRest, Quaternion.Euler(swingOpp, 0f, 0f));
-            Set(_shinL, _shinLRest, Quaternion.Euler(shinBend, 0f, 0f));
-            Set(_shinR, _shinRRest, Quaternion.Euler(shinBendOpp, 0f, 0f));
+            SetLocal(_hips, _hipsRest, Quaternion.Euler(lean * 0.4f, 0f, sway * 0.8f));
+            SetLocal(_spine, _spineRest, Quaternion.Euler(lean * 0.5f, sway * 1.2f, 0f));
+            SetLocal(_chest, _chestRest, Quaternion.Euler(lean * 0.35f, sway, 0f));
+            SetLocal(_head, _headRest, Quaternion.Euler(sprinting ? -4f : 0f, -sway * 0.35f, 0f));
 
-            Set(_armL, _armLRest, Quaternion.Euler(swingOpp * 0.75f, 0f, 12f));
-            Set(_armR, _armRRest, Quaternion.Euler(swing * 0.75f, 0f, -12f));
-            Set(_foreL, _foreLRest, Quaternion.Euler(12f + Mathf.Abs(swingOpp) * 0.15f, 0f, 0f));
-            Set(_foreR, _foreRRest, Quaternion.Euler(12f + Mathf.Abs(swing) * 0.15f, 0f, 0f));
+            // Pitch limbs around character right so Rigify A-pose local axes stay coordinated.
+            SwingBone(_thighL, _thighLRest, leftLeg, rightAxis);
+            SwingBone(_thighR, _thighRRest, rightLeg, rightAxis);
+            SwingBone(_shinL, _shinLRest, shinL, rightAxis);
+            SwingBone(_shinR, _shinRRest, shinR, rightAxis);
+
+            // Slight adduction so arms don't stay locked in A-pose while swinging.
+            var armCarryL = Quaternion.AngleAxis(14f, CharacterForward());
+            var armCarryR = Quaternion.AngleAxis(-14f, CharacterForward());
+            SwingBone(_armL, _armLRest, leftArm, rightAxis, armCarryL);
+            SwingBone(_armR, _armRRest, rightArm, rightAxis, armCarryR);
+            SwingBone(_foreL, _foreLRest, 14f + Mathf.Abs(leftArm) * 0.2f, rightAxis);
+            SwingBone(_foreR, _foreRRest, 14f + Mathf.Abs(rightArm) * 0.2f, rightAxis);
         }
 
         void ApplyJump()
         {
-            Set(_hips, _hipsRest, Quaternion.identity);
-            Set(_spine, _spineRest, Quaternion.Euler(-6f, 0f, 0f));
-            Set(_chest, _chestRest, Quaternion.Euler(-4f, 0f, 0f));
-            Set(_head, _headRest, Quaternion.Euler(6f, 0f, 0f));
-            Set(_thighL, _thighLRest, Quaternion.Euler(-16f, 0f, 6f));
-            Set(_thighR, _thighRRest, Quaternion.Euler(-10f, 0f, -6f));
-            Set(_shinL, _shinLRest, Quaternion.Euler(32f, 0f, 0f));
-            Set(_shinR, _shinRRest, Quaternion.Euler(26f, 0f, 0f));
-            Set(_armL, _armLRest, Quaternion.Euler(-35f, 0f, 22f));
-            Set(_armR, _armRRest, Quaternion.Euler(-30f, 0f, -22f));
-            Set(_foreL, _foreLRest, Quaternion.Euler(10f, 0f, 0f));
-            Set(_foreR, _foreRRest, Quaternion.Euler(10f, 0f, 0f));
+            var rightAxis = CharacterRight();
+            SetLocal(_hips, _hipsRest, Quaternion.identity);
+            SetLocal(_spine, _spineRest, Quaternion.Euler(-6f, 0f, 0f));
+            SetLocal(_chest, _chestRest, Quaternion.Euler(-4f, 0f, 0f));
+            SetLocal(_head, _headRest, Quaternion.Euler(6f, 0f, 0f));
+            SwingBone(_thighL, _thighLRest, -16f, rightAxis);
+            SwingBone(_thighR, _thighRRest, -10f, rightAxis);
+            SwingBone(_shinL, _shinLRest, 32f, rightAxis);
+            SwingBone(_shinR, _shinRRest, 26f, rightAxis);
+            SwingBone(_armL, _armLRest, -35f, rightAxis, Quaternion.AngleAxis(22f, CharacterForward()));
+            SwingBone(_armR, _armRRest, -30f, rightAxis, Quaternion.AngleAxis(-22f, CharacterForward()));
+            SwingBone(_foreL, _foreLRest, 10f, rightAxis);
+            SwingBone(_foreR, _foreRRest, 10f, rightAxis);
         }
 
-        static void Set(Transform bone, Quaternion rest, Quaternion delta)
+        Vector3 CharacterRight()
+        {
+            var t = _visualRoot != null ? _visualRoot : transform;
+            var right = t.right;
+            right.y = 0f;
+            return right.sqrMagnitude > 0.0001f ? right.normalized : Vector3.right;
+        }
+
+        Vector3 CharacterForward()
+        {
+            var t = _visualRoot != null ? _visualRoot : transform;
+            var fwd = t.forward;
+            fwd.y = 0f;
+            return fwd.sqrMagnitude > 0.0001f ? fwd.normalized : Vector3.forward;
+        }
+
+        static void SetLocal(Transform bone, Quaternion rest, Quaternion delta)
         {
             if (bone == null)
             {
@@ -312,6 +344,28 @@ namespace Freehold.Art.Pack
             }
 
             bone.localRotation = rest * delta;
+        }
+
+        /// <summary>
+        /// Apply a world-axis swing on top of rest (+ optional carry), then bake to localRotation.
+        /// Keeps left/right arm and leg swings opposite in the same character frame.
+        /// </summary>
+        static void SwingBone(Transform bone, Quaternion rest, float degrees, Vector3 axisWorld, Quaternion carryWorld = default)
+        {
+            if (bone == null)
+            {
+                return;
+            }
+
+            if (carryWorld.Equals(default))
+            {
+                carryWorld = Quaternion.identity;
+            }
+
+            var parentRot = bone.parent != null ? bone.parent.rotation : Quaternion.identity;
+            var restWorld = parentRot * rest;
+            var swungWorld = Quaternion.AngleAxis(degrees, axisWorld) * carryWorld * restWorld;
+            bone.localRotation = Quaternion.Inverse(parentRot) * swungWorld;
         }
     }
 
