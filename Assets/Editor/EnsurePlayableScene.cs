@@ -2,7 +2,6 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Freehold.EditorTools
 {
@@ -34,13 +33,14 @@ namespace Freehold.EditorTools
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Crafting/Campfire.cs") != null &&
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/Pack/PackPropFactory.cs") != null &&
                 AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/Art/Pack/PackPlayerVisual.cs") != null &&
-                AssetDatabase.IsValidFolder("Assets/ThirdParty/KenneyNatureKit") &&
-                AssetDatabase.IsValidFolder("Assets/ThirdParty/QuaterniusRpgItems") &&
-                AssetDatabase.IsValidFolder("Assets/ThirdParty/VuenaBlockyCharacters");
+                AssetDatabase.IsValidFolder("Assets/Floreswa") &&
+                AssetDatabase.IsValidFolder("Assets/BigRookGames/Nature Pack") &&
+                AssetDatabase.LoadAssetAtPath<GameObject>(PackPathsProxy.Hero) != null &&
+                AssetDatabase.LoadAssetAtPath<GameObject>(PackPathsProxy.Tree) != null;
 
             if (!scriptsOk)
             {
-                Debug.LogError("Freehold: missing core scripts.");
+                Debug.LogError("Freehold: missing core scripts or purchased Asset Store packs (Floreswa / BigRookGames).");
                 return;
             }
 
@@ -51,7 +51,13 @@ namespace Freehold.EditorTools
                 return;
             }
 
-            Debug.Log("Freehold survival slice looks complete. Open StarterArea and press Play.");
+            Debug.Log("Freehold survival slice looks complete with store packs. Open StarterArea and press Play.");
+        }
+
+        static class PackPathsProxy
+        {
+            public const string Hero = "Assets/Floreswa/Prefabs/male01_1.prefab";
+            public const string Tree = "Assets/BigRookGames/Nature Pack/Prefabs/tree_common_01.prefab";
         }
     }
 }

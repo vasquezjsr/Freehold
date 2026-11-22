@@ -3,105 +3,143 @@ using Freehold.Crafting;
 using Freehold.Items;
 using Freehold.World;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Freehold.Art.Pack
 {
-    /// <summary>Spawns environment/loot from vendored CC0 packs (Kenney + Quaternius).</summary>
+    /// <summary>
+    /// Spawns StarterArea dressing from the purchased BigRookGames nature pack.
+    /// Loot/campfire keep Quaternius + Kenney meshes where the store pack has no equivalents.
+    /// </summary>
     public static class PackPropFactory
     {
-        static readonly string[] TreeNames =
+        static readonly string[] TreePrefabs =
         {
-            "tree_default", "tree_default_dark", "tree_pineDefaultA", "tree_pineDefaultB",
-            "tree_oak", "tree_oak_dark", "tree_cone", "tree_detailed", "tree_fat", "tree_pineRoundA"
+            "tree_common_01", "tree_common_02", "tree_common_03",
+            "tree_common_01", "tree_common_02", "tree_common_03"
         };
 
-        static readonly string[] RockNames =
+        static readonly string[] BushPrefabs =
         {
-            "rock_largeA", "rock_largeB", "rock_largeC", "rock_largeD", "rock_largeE", "rock_largeF",
-            "rock_smallA", "rock_smallB", "rock_smallC", "rock_smallD", "rock_tallA", "rock_tallB"
+            "bush_01", "bush_02", "bush_03", "bush_04", "bush_05", "bush_border"
+        };
+
+        static readonly string[] GrassPrefabs =
+        {
+            "bush_01", "bush_02", "bush_05"
         };
 
         public static GameObject CreateTree(Vector3 position, int variant)
         {
-            var name = TreeNames[variant % TreeNames.Length];
-            var go = CreateKenneyObject(name, $"Tree_{name}", position, addCollider: true);
+            var name = TreePrefabs[variant % TreePrefabs.Length];
+            var go = InstantiateNaturePrefab(name, $"Tree_{name}", position, addCollider: true);
             if (go == null)
             {
                 return Freehold.Art.PropFactory.CreateTree(position, variant);
             }
 
             go.transform.rotation = Quaternion.Euler(0f, variant * 37f, 0f);
-            var scale = 0.9f + (variant % 4) * 0.08f;
+            var scale = 0.85f + (variant % 4) * 0.1f;
             go.transform.localScale = Vector3.one * scale;
             return go;
         }
 
         public static GameObject CreateGrass(Vector3 position, int variant)
         {
-            var name = variant % 2 == 0 ? "grass" : "grass_large";
-            var go = CreateKenneyObject(name, $"Grass_{variant}", position, false);
-            if (go != null)
+            var name = GrassPrefabs[variant % GrassPrefabs.Length];
+            var go = InstantiateNaturePrefab(name, $"Grass_{variant}", position, false);
+            if (go == null)
             {
-                go.transform.rotation = Quaternion.Euler(0f, variant * 40f, 0f);
+                return null;
             }
 
+            go.transform.rotation = Quaternion.Euler(0f, variant * 40f, 0f);
+            go.transform.localScale = Vector3.one * (0.35f + (variant % 3) * 0.08f);
             return go;
         }
 
         public static GameObject CreateRock(Vector3 position, int variant)
         {
-            var name = RockNames[variant % RockNames.Length];
-            var go = CreateKenneyObject(name, $"Rock_{name}", position + Vector3.up * 0.02f, addCollider: true);
+            // Nature pack has no rock meshes — use denser bushes / borders as ground dressing.
+            var name = BushPrefabs[variant % BushPrefabs.Length];
+            var go = InstantiateNaturePrefab(name, $"RockDressing_{name}", position, addCollider: true);
             if (go == null)
             {
                 return Freehold.Art.PropFactory.CreateRock(position, variant);
             }
 
             go.transform.rotation = Quaternion.Euler(0f, variant * 45f, 0f);
-            go.transform.localScale = Vector3.one * (0.85f + (variant % 5) * 0.12f);
+            go.transform.localScale = Vector3.one * (0.55f + (variant % 5) * 0.08f);
             return go;
         }
 
         public static GameObject CreatePond(Vector3 position)
         {
-            // Kenney waterfalls as water feature + grass/stone shore from pack.
             var root = new GameObject("Pond");
             root.transform.position = position;
 
-            var water = CreateKenneyObject("cliff_waterfall_rock", "WaterFeature", position, false);
-            if (water != null)
-            {
-                water.transform.SetParent(root.transform, true);
-                water.transform.localScale = new Vector3(1.4f, 0.6f, 1.4f);
-            }
-
-            for (var i = 0; i < 8; i++)
-            {
-                var a = i / 8f * Mathf.PI * 2f;
-                var p = position + new Vector3(Mathf.Cos(a) * 3.2f, 0f, Mathf.Sin(a) * 3.2f);
-                var stone = CreateRock(p, 20 + i);
-                stone.transform.SetParent(root.transform, true);
-                stone.transform.localScale *= 0.55f;
-            }
+            var water = PrimitiveFactory.CreateColoredPrimitive(
+                PrimitiveType.Cylinder,
+                position,
+                new Vector3(5.5f, 0.08f, 5.5f),
+                new Color(0.25f, 0.45f, 0.55f, 0.85f),
+                "Water",
+                false);
+            water.transform.SetParent(root.transform, true);
 
             for (var i = 0; i < 10; i++)
             {
-                var a = i / 10f * Mathf.PI * 2f + 0.2f;
-                var p = position + new Vector3(Mathf.Cos(a) * 2.4f, 0f, Mathf.Sin(a) * 2.4f);
-                var grass = CreateKenneyObject(i % 2 == 0 ? "grass" : "grass_large", $"ShoreGrass_{i}", p, false);
+                var a = i / 10f * Mathf.PI * 2f;
+                var p = position + new Vector3(Mathf.Cos(a) * 3.4f, 0f, Mathf.Sin(a) * 3.4f);
+                var bush = CreateRock(p, 20 + i);
+                if (bush != null)
+                {
+                    bush.transform.SetParent(root.transform, true);
+                    bush.transform.localScale *= 0.7f;
+                }
+            }
+
+            for (var i = 0; i < 12; i++)
+            {
+                var a = i / 12f * Mathf.PI * 2f + 0.2f;
+                var p = position + new Vector3(Mathf.Cos(a) * 2.5f, 0f, Mathf.Sin(a) * 2.5f);
+                var grass = CreateGrass(p, 40 + i);
                 if (grass != null)
                 {
                     grass.transform.SetParent(root.transform, true);
                 }
             }
 
-            if (water == null)
+            return root;
+        }
+
+        public static bool TryApplyGroundMaterial(GameObject ground)
+        {
+#if UNITY_EDITOR
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(PackPaths.NatureMaterial("grass_tile_01"));
+            if (mat == null)
             {
-                Object.Destroy(root);
-                return Freehold.Art.PropFactory.CreatePond(position);
+                mat = AssetDatabase.LoadAssetAtPath<Material>(PackPaths.NatureMaterial("grass_tile_02"));
             }
 
-            return root;
+            if (mat == null || ground == null)
+            {
+                return false;
+            }
+
+            var renderer = ground.GetComponent<MeshRenderer>();
+            if (renderer == null)
+            {
+                return false;
+            }
+
+            renderer.sharedMaterial = mat;
+            return true;
+#else
+            return false;
+#endif
         }
 
         public static ItemPickup CreatePickup(ItemType type, Vector3 position)
@@ -181,7 +219,6 @@ namespace Freehold.Art.Pack
             if (stones != null) stones.transform.SetParent(root.transform, true);
             if (logs != null) logs.transform.SetParent(root.transform, true);
 
-            // Flame visual kept as a pack-colored mesh child (same point-light values as before).
             var flame = new GameObject("Flame");
             flame.transform.SetParent(root.transform, false);
             flame.transform.localPosition = Vector3.up * 0.35f;
@@ -212,6 +249,42 @@ namespace Freehold.Art.Pack
             campfire.ConfigureVisuals(flame.transform, light);
             root.tag = "Campfire";
             return campfire;
+        }
+
+        static GameObject InstantiateNaturePrefab(string prefabName, string goName, Vector3 position, bool addCollider)
+        {
+#if UNITY_EDITOR
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PackPaths.NaturePrefab(prefabName));
+            if (prefab == null)
+            {
+                return null;
+            }
+
+            var go = Object.Instantiate(prefab);
+            go.name = goName;
+            go.transform.position = position;
+
+            if (addCollider && go.GetComponentInChildren<Collider>() == null)
+            {
+                var filter = go.GetComponentInChildren<MeshFilter>();
+                if (filter != null && filter.sharedMesh != null)
+                {
+                    var col = go.AddComponent<MeshCollider>();
+                    col.sharedMesh = filter.sharedMesh;
+                }
+                else
+                {
+                    var capsule = go.AddComponent<CapsuleCollider>();
+                    capsule.height = 2f;
+                    capsule.radius = 0.4f;
+                    capsule.center = new Vector3(0f, 1f, 0f);
+                }
+            }
+
+            return go;
+#else
+            return null;
+#endif
         }
 
         static GameObject CreateKenneyObject(string assetName, string goName, Vector3 position, bool addCollider)

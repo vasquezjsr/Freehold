@@ -25,6 +25,7 @@ namespace Freehold.World
                 ArtPalette.Grass,
                 "Ground");
             ground.transform.position = new Vector3(0f, -0.1f, 0f);
+            PackPropFactory.TryApplyGroundMaterial(ground);
 
             for (var i = 0; i < 40; i++)
             {
@@ -47,6 +48,8 @@ namespace Freehold.World
                     ArtPalette.Dirt,
                     $"Dirt_{i}",
                     false);
+                // Extra low bushes as ground dressing from the nature pack.
+                PackPropFactory.CreateGrass(pos + new Vector3(0.6f, 0f, 0.4f), 100 + i);
             }
         }
 
