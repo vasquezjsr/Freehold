@@ -52,3 +52,9 @@ ServerData/
 *.private
 *.private.meta
 ignore.conf
+
+# Purchased Unity Asset Store packs (EULA — keep local; do not publish)
+Assets/Floreswa/
+Assets/BigRookGames/
+Assets/Resources/Characters/StoreHero.fbx
+Assets/Resources/Characters/StoreHero.fbx.meta

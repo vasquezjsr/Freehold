@@ -7,20 +7,19 @@ using UnityEditor;
 namespace Freehold.Art.Pack
 {
     /// <summary>
-    /// Instantiates the Vuena CC0 blocky hero. Prefers Resources, then Editor AssetDatabase.
+    /// Instantiates a Floreswa Low Poly Character Pack hero.
     /// Falls back to procedural humanoid only if the pack asset is unavailable.
     /// </summary>
     public static class PackPlayerVisual
     {
-        const string ResourcesPath = "Characters/Hero";
-        const string EditorFbxPath = "Assets/ThirdParty/VuenaBlockyCharacters/Unity/blocky_01_hero.fbx";
+        const string ResourcesPath = "Characters/StoreHero";
 
         public static bool TryAttach(Transform playerRoot)
         {
             var source = LoadHeroSource();
             if (source == null)
             {
-                Debug.LogWarning("Freehold: Vuena hero FBX not available yet — using procedural humanoid fallback. After Unity imports ThirdParty assets, Play again or use Freehold/Refresh Pack Player.");
+                Debug.LogWarning("Freehold: Floreswa character not available yet — using procedural humanoid fallback. After Unity imports Assets/Floreswa, Press Play again.");
                 PlayerVisualBuilder.Build(playerRoot);
                 return false;
             }
@@ -31,7 +30,7 @@ namespace Freehold.Art.Pack
             instance.transform.localRotation = Quaternion.identity;
             instance.transform.localScale = Vector3.one;
 
-            // Prefer pack Animation clips (idle/walk/run/jump) when present.
+            // Prefer pack Animation clips when present (this pack ships static meshes).
             var anim = instance.GetComponentInChildren<Animation>();
             var animator = instance.GetComponentInChildren<Animator>();
             var bridge = playerRoot.gameObject.AddComponent<PackPlayerAnimationBridge>();
@@ -48,10 +47,16 @@ namespace Freehold.Art.Pack
             }
 
 #if UNITY_EDITOR
-            var fromAsset = AssetDatabase.LoadAssetAtPath<GameObject>(EditorFbxPath);
-            if (fromAsset != null)
+            var fromPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PackPaths.FloreswaHeroPrefab);
+            if (fromPrefab != null)
             {
-                return fromAsset;
+                return fromPrefab;
+            }
+
+            var fromFbx = AssetDatabase.LoadAssetAtPath<GameObject>(PackPaths.FloreswaHeroFbx);
+            if (fromFbx != null)
+            {
+                return fromFbx;
             }
 #endif
             return null;
@@ -121,7 +126,6 @@ namespace Freehold.Art.Pack
                     }
                 }
 
-                // Try first clip containing name fragment
                 foreach (AnimationState state in _legacy)
                 {
                     foreach (var n in names)
@@ -139,7 +143,7 @@ namespace Freehold.Art.Pack
 
             if (_animator != null && _animator.runtimeAnimatorController != null)
             {
-                // Without a custom controller, Animator may still expose parameters later.
+                // Parameter-driven controllers can be wired later without changing gameplay.
             }
         }
     }
